@@ -1,0 +1,20 @@
+{
+  "name": "سعيد نزال التجارية – Said Nazzal Trading",
+  "short_name": "سعيد نزال",
+  "description": "مستلزمات المطاعم والكافيهات والحلويات ومواد التغليف",
+  "id": "/shop-o6bwd2u8fe.html",
+  "start_url": "/shop-o6bwd2u8fe.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "theme_color": "#1B2D5B",
+  "background_color": "#F3F4F7",
+  "icons": [
+    {"src": "/icons/shop-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/icons/shop-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/icons/shop-mask-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/icons/shop-mask-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "SN Admin – لوحة تحكم سعيد نزال",
+  "short_name": "SN Admin",
+  "description": "إدارة الطلبات والمنتجات",
+  "id": "/shop-o6bwd2u8fe.html#admin",
+  "start_url": "/shop-o6bwd2u8fe.html#admin",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "theme_color": "#1B2D5B",
+  "background_color": "#F3F4F7",
+  "icons": [
+    {"src": "/icons/admin-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/icons/admin-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/icons/admin-mask-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/icons/admin-mask-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

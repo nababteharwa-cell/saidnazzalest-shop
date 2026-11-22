@@ -6,7 +6,14 @@
 <meta name="robots" content="noindex,nofollow">
 <title>سعيد نزال التجارية | Said Nazzal Trading</title>
 <meta name="description" content="مستلزمات المطاعم والكافيهات والحلويات ومواد التغليف – عمّان، الجبيهة. اطلب أونلاين والدفع عند الاستلام.">
-<link rel="icon" href="photos/b-logo.jpg">
+<link rel="icon" href="icons/shop-192.png">
+<link rel="manifest" id="mf" href="shop.webmanifest">
+<meta name="theme-color" content="#1B2D5B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" id="atitle" content="سعيد نزال">
+<link rel="apple-touch-icon" id="aicon" href="icons/apple-shop.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -145,6 +152,13 @@ td.n{white-space:nowrap}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 .demo{background:#C9973B1a;border-radius:12px;padding:10px 14px;font-size:14px;margin-bottom:14px;color:var(--goldInk)}
+.install{position:fixed;inset-inline:12px;bottom:12px;z-index:45;background:#fff;border-radius:16px;box-shadow:0 12px 40px #0003;padding:10px 12px;display:flex;gap:10px;align-items:center;max-width:520px;margin-inline:auto}
+.install[hidden]{display:none}
+.install img{width:44px;height:44px;border-radius:10px}
+.install div{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.install span{font-size:13px;color:var(--mute)}
+.install .btn{min-height:40px;padding:6px 14px}
+@media(display-mode:standalone){#install{display:none!important}}
 /* footer */
 footer{background:var(--navy);color:#C9D1E6;padding:36px max(4vw,14px);font-size:14px}
 footer .in{max-width:1280px;margin:auto;display:flex;flex-wrap:wrap;gap:18px 40px;align-items:center;justify-content:space-between}
@@ -174,6 +188,7 @@ footer a{color:#fff}
 <aside class="drawer" id="cart" aria-label="السلة"><div class="dh"><h2 id="cartTitle">سلة الطلب</h2><button class="x" data-close aria-label="إغلاق">×</button></div><div class="db" id="cartBody"></div></aside>
 <div class="modal" id="modal" role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast"></div>
+<div class="install" id="install" hidden><img src="icons/shop-192.png" alt="" id="insIcon"><div><b id="insT"></b><span id="insS"></span></div><button class="btn gold" id="insGo"></button><button class="x" id="insX" aria-label="إغلاق">×</button></div>
 
 <script>
 {
@@ -551,7 +566,7 @@ function paneSettings(){
 function show(sel){$(sel).classList.add('on');$('#veil').classList.add('on')}
 function close(){['#modal','#cart','#veil'].forEach(s=>$(s).classList.remove('on'))}
 const setName=()=>{$('#storeName').textContent=en()?(db.settings.store_en||'Said Nazzal Trading'):db.settings.store;$('#logoImg').src=B().logo||'photos/b-logo.jpg'};
-function route(){close();const a=location.hash==='#admin';document.documentElement.dir=a||!en()?'rtl':'ltr';$('#langBtnW').style.display=a?'none':'';$('#adminBtn').textContent=a?t('store'):t('panel');$('#cartBtn').style.display=a?'none':'';a?renderAdmin():renderShop()}
+function route(){close();const a=location.hash==='#admin';setAppMode(a);document.documentElement.dir=a||!en()?'rtl':'ltr';$('#langBtnW').style.display=a?'none':'';$('#adminBtn').textContent=a?t('store'):t('panel');$('#cartBtn').style.display=a?'none':'';a?renderAdmin():renderShop()}
 document.addEventListener('click',e=>{const t=e.target.closest('button,[data-close]');if(!t)return;const d=t.dataset;
   if('close' in d)close();
   else if(d.cat){cat=d.cat;sub=null;tag=null;renderShop();if(t.classList.contains('tile'))$('#shop').scrollIntoView()}
@@ -576,6 +591,20 @@ $('#langBtnW').addEventListener('click',()=>{lang=en()?'ar':'en';try{localStorag
 $('#adminBtnW').addEventListener('click',()=>{location.hash=location.hash==='#admin'?'':'admin'});
 $('#q').addEventListener('input',renderShop);
 window.addEventListener('hashchange',route);
+let deferredInstall=null;
+const standalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+function setAppMode(a){const put=(q,k,v)=>{const el=$(q);if(el)el[k]=v};put('#mf','href',a?'admin.webmanifest':'shop.webmanifest');put('#aicon','href',a?'icons/apple-admin.png':'icons/apple-shop.png');put('#atitle','content',a?'SN Admin':'سعيد نزال');put('#insIcon','src',a?'icons/admin-192.png':'icons/shop-192.png');showInstall()}
+function showInstall(){const bar=$('#install');let dis={};try{dis=JSON.parse(localStorage.getItem('sn-install-x')||'{}')}catch(e){}
+  const a=location.hash==='#admin',key=a?'admin':'shop';if(standalone()||dis[key]||(!deferredInstall&&!isIOS)||(!a&&innerWidth>900)){bar.hidden=true;return}
+  $('#insT').textContent=a?'ثبّتي لوحة التحكم على موبايلك':(en()?'Install the Said Nazzal app':'ثبّت تطبيق سعيد نزال');
+  $('#insS').textContent=isIOS&&!deferredInstall?(en()?'Tap Share, then “Add to Home Screen”':'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»'):(en()?'Faster ordering, right from your home screen':'اطلب أسرع من شاشتك الرئيسية');
+  $('#insGo').textContent=en()?'Install':'تثبيت';$('#insGo').hidden=isIOS&&!deferredInstall;bar.hidden=false}
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;showInstall()});
+addEventListener('appinstalled',()=>{$('#install').hidden=true;toast(location.hash==='#admin'?'تم تثبيت لوحة التحكم':'تم تثبيت التطبيق')});
+$('#insGo').onclick=async()=>{if(!deferredInstall)return;deferredInstall.prompt();await deferredInstall.userChoice;deferredInstall=null;$('#install').hidden=true};
+$('#insX').onclick=()=>{let dis={};try{dis=JSON.parse(localStorage.getItem('sn-install-x')||'{}')}catch(e){}dis[location.hash==='#admin'?'admin':'shop']=1;try{localStorage.setItem('sn-install-x',JSON.stringify(dis))}catch(e){}$('#install').hidden=true};
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('sw',e));
 applyLang();$('#app').innerHTML='<div class="empty">…</div>';
 loadShop().then(ok=>{applyLang();updCount();if(ok)route()});
 if(sb)sb.auth.getSession().then(async({data})=>{if(!data.session)return;const ok=await sb.from('admins').select('user_id').eq('user_id',data.session.user.id).maybeSingle();if(ok.data){authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);if(location.hash==='#admin')renderAdmin()}});
