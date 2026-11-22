@@ -355,10 +355,10 @@ function renderAdmin(){
     const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
     if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',front:'واجهة المتجر',settings:'الإعدادات'};
+  const T={orders:'الطلبات',products:'المنتجات',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,front:paneFront,settings:paneSettings})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -454,6 +454,25 @@ function paneFront(){
   $('#bview').onclick=async()=>{sync();if(await pushB()){setName();location.hash=''}};
   $('#ff').onsubmit=async e=>{e.preventDefault();sync();if(await pushB()){setName();toast('تم حفظ الواجهة');draw()}};};
   draw();
+}
+async function paneAccount(){
+  const {data}=await sb.auth.getUser();const email=data?.user?.email||'';
+  $('#pane').innerHTML=`<form id="pwf" style="max-width:420px"><p class="note" style="margin-top:0">مسجّلة الدخول باسم <b dir="ltr">${esc(email)}</b></p>
+  <h3 style="margin:18px 0 0">تغيير كلمة السر</h3>
+  <label for="pw0">كلمة السر الحالية</label><input id="pw0" type="password" autocomplete="current-password" required>
+  <label for="pw1">كلمة السر الجديدة (8 أحرف على الأقل)</label><input id="pw1" type="password" autocomplete="new-password" minlength="8" required>
+  <label for="pw2">تأكيد كلمة السر الجديدة</label><input id="pw2" type="password" autocomplete="new-password" minlength="8" required>
+  <p class="oos" id="pwErr"></p><button class="btn">تغيير كلمة السر</button></form>`;
+  $('#pwf').onsubmit=async e=>{e.preventDefault();const err=$('#pwErr');err.textContent='';const p0=$('#pw0').value,p1=$('#pw1').value,p2=$('#pw2').value;
+    if(p1.length<8)return err.textContent='كلمة السر الجديدة لازم تكون 8 أحرف أو أكثر';
+    if(p1!==p2)return err.textContent='كلمتا السر الجديدتان مش متطابقتين';
+    if(p1===p0)return err.textContent='كلمة السر الجديدة نفس القديمة';
+    const btn=e.submitter;btn.disabled=true;btn.textContent='جاري التغيير…';
+    const chk=await sb.auth.signInWithPassword({email,password:p0});
+    if(chk.error){btn.disabled=false;btn.textContent='تغيير كلمة السر';return err.textContent='كلمة السر الحالية غير صحيحة'}
+    const r=await sb.auth.updateUser({password:p1});btn.disabled=false;btn.textContent='تغيير كلمة السر';
+    if(r.error){console.error(r.error);return err.textContent=/weak|short|characters/i.test(r.error.message)?'كلمة السر ضعيفة – جربي وحدة أطول فيها أرقام وأحرف':'ما تغيّرت كلمة السر: '+r.error.message}
+    e.target.reset();toast('تم تغيير كلمة السر')};
 }
 function paneSettings(){
   const s=db.settings;let resetAsk=false;
