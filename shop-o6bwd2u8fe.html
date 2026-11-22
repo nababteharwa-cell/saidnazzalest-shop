@@ -159,6 +159,19 @@ td.n{white-space:nowrap}
 .install span{font-size:13px;color:var(--mute)}
 .install .btn{min-height:40px;padding:6px 14px}
 @media(display-mode:standalone){#install{display:none!important}}
+.pwrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px;align-items:start}
+.pside{position:sticky;top:76px;background:#fff;border-radius:var(--r);padding:8px;box-shadow:0 1px 0 var(--line);max-height:calc(100vh - 96px);overflow:auto}
+.pcat,.psub{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:start;background:none;border:0;border-radius:10px;padding:9px 10px;min-height:40px;font-weight:500}
+.psub{font-size:14px;padding-inline-start:22px;color:var(--mute)}
+.pcat span,.psub span{color:var(--mute);font-size:13px}
+.pcat:hover,.psub:hover{background:var(--bg)}
+.pcat.on,.psub.on{background:var(--navy);color:#fff}.pcat.on span,.psub.on span{color:#C9D1E6}
+.pgroup{margin-bottom:18px}.pgh{display:flex;justify-content:space-between;align-items:center;padding:6px 4px}
+.phid td{opacity:.55}
+.bulkbar{position:sticky;top:70px;z-index:5;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--navy);color:#fff;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.bulkbar select{max-width:200px;min-height:40px;color:var(--ink);background:#fff}.bulkbar .btn{min-height:40px;padding:6px 14px}
+.bulkbar .btn.alt{background:transparent;color:#fff;border-color:#ffffff55}
+@media(max-width:800px){.pwrap{grid-template-columns:1fr}.pside{position:static;display:flex;overflow-x:auto;gap:4px;max-height:none}.pcat,.psub{width:auto;flex:none;white-space:nowrap}.psubs{display:contents}}
 /* footer */
 footer{background:var(--navy);color:#C9D1E6;padding:36px max(4vw,14px);font-size:14px}
 footer .in{max-width:1280px;margin:auto;display:flex;flex-wrap:wrap;gap:18px 40px;align-items:center;justify-content:space-between}
@@ -409,18 +422,55 @@ function orderDetail(id){
   <div class="row" style="margin-top:14px"><a class="wa" href="https://wa.me/${o.phone.trim().startsWith('+')||o.phone.startsWith('00')?o.phone.replace(/\D/g,'').replace(/^00/,''):'962'+o.phone.replace(/\D/g,'').replace(/^0/,'')}?text=${encodeURIComponent('مرحبا '+o.name+'، معك سعيد نزال التجارية بخصوص طلبك '+o.id)}" target="_blank" rel="noopener">راسل الزبون على واتساب</a></div></div>`;
   show('#modal');
 }
+let pf={cat:'',sub:'',flt:'',q:''},psel=new Set();
 function paneProducts(){
-  $('#pane').innerHTML=`<div class="toolbar"><input id="pq" type="text" placeholder="ابحث في المنتجات" style="max-width:320px"><button class="btn gold" id="newP">+ منتج جديد</button></div>
-  <table class="stack"><thead><tr><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر بالمتجر</th><th></th></tr></thead><tbody id="ptb"></tbody></table>`;
-  const draw=()=>{const q=$('#pq').value.trim();$('#ptb').innerHTML=db.products.filter(p=>!q||p.name.includes(q)).map(p=>{const st=p.vars.map(v=>v.stock).filter(s=>s!=null);
-  return `<tr><td><div class="mini">${pic(p)}</div></td><td><b>${esc(p.name)}</b><div class="note">${esc(p.cat)} · ${p.vars.length} ${p.vars.length>1?'أحجام':'نوع'}${p.src?' · من منشور انستغرام':''}${p.date?` · <span class="oos">سعر ${p.date} – راجعيه</span>`:''}</div></td><td class="n">${priceOf(p)}</td>
-  <td class="n">${st.length?`<span class="${st.some(s=>s<10)?'oos':''}">${st.reduce((a,b)=>a+b,0)}</span>`:'—'}</td>
-  <td><input type="checkbox" data-vis="${p.id}" ${p.visible?'checked':''} aria-label="ظاهر" style="width:22px;height:22px"></td>
-  <td class="n"><button class="btn alt" data-ed="${p.id}" style="min-height:40px;padding:6px 12px">تعديل</button></td></tr>`}).join('')};
-  draw();$('#pq').addEventListener('input',draw);$('#newP').addEventListener('click',()=>editProduct(null));
+  const P=db.products,cats=catList();
+  const FL={hidden:['مخفية',p=>!p.visible],ask:['سعر عند الطلب',p=>p.ask],old:['سعر قديم',p=>!!p.date],noimg:['بدون صورة',p=>!(p.img||p.vars.some(v=>v.img))],low:['كمية قليلة',p=>p.vars.some(v=>v.stock!=null&&v.stock<10)]};
+  const known=new Set(cats.map(c=>c.name));const orphan=P.filter(p=>!known.has(p.cat));
+  const inCat=(p,c,sb)=>(c==='__none'?!known.has(p.cat):(!c||p.cat===c))&&(!sb||(sb==='__none'?!p.sub:p.sub===sb));
+  const match=p=>inCat(p,pf.cat,pf.sub)&&(!pf.flt||FL[pf.flt][1](p))&&(!pf.q||(p.name+' '+(p.name_en||'')).toLowerCase().includes(pf.q.toLowerCase()));
+  const side=`<nav class="pside"><button class="pcat ${!pf.cat?'on':''}" data-pc="">كل المنتجات <span>${P.length}</span></button>
+   ${cats.map(c=>`<button class="pcat ${pf.cat===c.name&&!pf.sub?'on':''}" data-pc="${esc(c.name)}">${esc(c.name)} <span>${P.filter(p=>p.cat===c.name).length}</span></button>
+   ${pf.cat===c.name?`<div class="psubs">${(c.subs||[]).map(x=>`<button class="psub ${pf.sub===x.name?'on':''}" data-pc="${esc(c.name)}" data-ps="${esc(x.name)}">${esc(x.name)} <span>${P.filter(p=>p.cat===c.name&&p.sub===x.name).length}</span></button>`).join('')}${P.some(p=>p.cat===c.name&&!p.sub)?`<button class="psub ${pf.sub==='__none'?'on':''}" data-pc="${esc(c.name)}" data-ps="__none">بدون قسم فرعي <span>${P.filter(p=>p.cat===c.name&&!p.sub).length}</span></button>`:''}</div>`:''}`).join('')}
+   ${orphan.length?`<button class="pcat ${pf.cat==='__none'?'on':''}" data-pc="__none" style="color:var(--bad)">بدون قسم <span>${orphan.length}</span></button>`:''}</nav>`;
+  $('#pane').innerHTML=`<div class="pwrap">${side}<div class="pmain">
+   <div class="toolbar"><input id="pq" type="text" placeholder="ابحث في المنتجات" value="${esc(pf.q)}" style="max-width:300px"><button class="btn gold" id="newP">+ منتج جديد</button></div>
+   <div class="occ" style="margin-bottom:10px">${Object.entries(FL).map(([k,[n,f]])=>`<button class="ochip ${pf.flt===k?'on':''}" data-pfl="${k}">${n} <b>${P.filter(f).length}</b></button>`).join('')}</div>
+   <div id="bulk"></div><div id="plist"></div></div></div>`;
+  const draw=()=>{const list=P.filter(match);
+    const groups=[];const key=p=>pf.cat&&pf.cat!=='__none'?(p.sub||'بدون قسم فرعي'):p.cat;
+    const order=pf.cat&&pf.cat!=='__none'?[...((cats.find(c=>c.name===pf.cat)||{}).subs||[]).map(x=>x.name),'بدون قسم فرعي']:[...cats.map(c=>c.name)];
+    list.forEach(p=>{const k=key(p)||'بدون قسم';let g=groups.find(g=>g.k===k);if(!g)groups.push(g={k,items:[]});g.items.push(p)});
+    groups.sort((a,b)=>{const i=order.indexOf(a.k),j=order.indexOf(b.k);return (i<0?999:i)-(j<0?999:j)});
+    const row=p=>{const st=p.vars.map(v=>v.stock).filter(x=>x!=null);return `<tr class="${p.visible?'':'phid'}"><td><input type="checkbox" data-psel="${p.id}" ${psel.has(p.id)?'checked':''} aria-label="تحديد" style="width:20px;height:20px"></td><td><div class="mini">${pic(p)}</div></td>
+     <td><b>${esc(p.name)}</b><div class="note">${pf.cat?'':esc(p.sub||'')+' · '}${p.vars.length} ${p.opts&&p.opts.length?'تركيبة':(p.vars.length>1?'أحجام':'نوع')}${p.date?` · <span class="oos">سعر ${p.date}</span>`:''}${p.visible?'':' · <b>مخفي</b>'}</div></td>
+     <td class="n">${priceOf(p)}</td><td class="n">${st.length?`<span class="${st.some(x=>x<10)?'oos':''}">${st.reduce((a,b)=>a+b,0)}</span>`:'—'}</td>
+     <td><input type="checkbox" data-vis="${p.id}" ${p.visible?'checked':''} aria-label="ظاهر" style="width:22px;height:22px"></td>
+     <td class="n"><button class="btn alt" data-ed="${p.id}" style="min-height:40px;padding:6px 12px">تعديل</button></td></tr>`};
+    $('#plist').innerHTML=list.length?groups.map(g=>`<div class="pgroup"><div class="pgh"><label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" data-pall="${esc(g.k)}" ${g.items.every(p=>psel.has(p.id))?'checked':''} style="width:20px;height:20px"><b>${esc(g.k)}</b></label><span class="note">${g.items.length} منتج</span></div>
+      <table class="stack"><thead><tr><th></th><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر</th><th></th></tr></thead><tbody>${g.items.map(row).join('')}</tbody></table></div>`).join(''):'<div class="empty">ما في منتجات بهالاختيار.</div>';
+    const sel=[...psel].filter(id=>P.some(p=>p.id===id));
+    $('#bulk').innerHTML=sel.length?`<div class="bulkbar"><b>${sel.length} محدد</b>
+      <select id="bmc" aria-label="القسم">${cats.map(c=>`<option>${esc(c.name)}</option>`).join('')}</select><select id="bms" aria-label="القسم الفرعي"></select><button class="btn gold" id="bmove">نقل</button>
+      <button class="btn alt" id="bhide">إخفاء</button><button class="btn alt" id="bshow">إظهار</button><button class="btn alt" id="bclr">إلغاء التحديد</button></div>`:'';
+    if(sel.length){const fillS=()=>{const c=cats.find(c=>c.name===$('#bmc').value);$('#bms').innerHTML='<option value="">— بدون قسم فرعي —</option>'+((c&&c.subs)||[]).map(x=>`<option>${esc(x.name)}</option>`).join('')};
+      if(pf.cat&&pf.cat!=='__none')$('#bmc').value=pf.cat;fillS();$('#bmc').onchange=fillS;
+      const apply=async(fn,msg)=>{const ch=sel.map(id=>P.find(p=>p.id===id));ch.forEach(fn);
+        const r=await sb.from('products').upsert(ch.map(p=>({id:p.id,sort:P.indexOf(p),data:p,updated_at:new Date().toISOString()})));
+        if(r.error)return fail('ما انحفظ التعديل',r.error);psel.clear();toast(msg+' – '+ch.length+' منتج');paneProducts()};
+      $('#bmove').onclick=()=>{const c=cats.find(c=>c.name===$('#bmc').value);const sb2=$('#bms').value;const se=((c&&c.subs)||[]).find(x=>x.name===sb2);apply(p=>{p.cat=c.name;p.cat_en=c.name_en||'';p.sub=sb2;p.sub_en=se?se.name_en||'':''},'تم النقل')};
+      $('#bhide').onclick=()=>apply(p=>p.visible=false,'تم الإخفاء');$('#bshow').onclick=()=>apply(p=>p.visible=true,'تم الإظهار');$('#bclr').onclick=()=>{psel.clear();draw()}}
+    document.querySelectorAll('[data-psel]').forEach(x=>x.onchange=()=>{x.checked?psel.add(x.dataset.psel):psel.delete(x.dataset.psel);draw()});
+    document.querySelectorAll('[data-pall]').forEach(x=>x.onchange=()=>{const g=groups.find(g=>g.k===x.dataset.pall);g.items.forEach(p=>x.checked?psel.add(p.id):psel.delete(p.id));draw()});
+  };
+  draw();
+  $('#pq').oninput=e=>{pf.q=e.target.value;draw()};
+  document.querySelectorAll('[data-pc]').forEach(b=>b.onclick=()=>{pf.cat=b.dataset.pc;pf.sub=b.dataset.ps||'';paneProducts()});
+  document.querySelectorAll('[data-pfl]').forEach(b=>b.onclick=()=>{pf.flt=pf.flt===b.dataset.pfl?'':b.dataset.pfl;paneProducts()});
+  $('#newP').onclick=()=>editProduct(null,{cat:pf.cat&&pf.cat!=='__none'?pf.cat:'',sub:pf.sub&&pf.sub!=='__none'?pf.sub:''});
 }
-function editProduct(id){
-  const src=id?db.products.find(p=>p.id===id):{id:'n'+Date.now().toString(36),name:'',cat:(catList()[0]||{}).name||'',kind:'box',desc:'',unit:'قطعة',ask:false,visible:true,vars:[{label:'قطعة',price:0,stock:null}]};
+function editProduct(id,pre={}){
+  const src=id?db.products.find(p=>p.id===id):{id:'n'+Date.now().toString(36),name:'',cat:pre.cat||(catList()[0]||{}).name||'',sub:pre.sub||'',kind:'box',desc:'',unit:'قطعة',ask:false,visible:true,vars:[{label:'قطعة',price:0,stock:null}]};
   const p=JSON.parse(JSON.stringify(src));let confirmDel=false;
   const cats=[...new Set(db.products.map(x=>x.cat))];
   const draw=()=>{
