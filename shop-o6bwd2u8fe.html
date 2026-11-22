@@ -256,7 +256,11 @@ EN_W.sort((x,y)=>y[0].length-x[0].length);
 const trW=s=>{if(!en()||!s)return s;let r=String(s);for(const [a,b] of EN_W)r=r.split(a).join(b);return r};
 const pn=p=>en()?(p.name_en||p.name):p.name;
 const pd=p=>en()?(p.desc_en||p.desc):p.desc;
-const CAT_EN=()=>{const m={...EN_CAT};db.products.forEach(p=>{if(p.cat_en)m[p.cat]=p.cat_en;if(p.sub&&p.sub_en)m[p.sub]=p.sub_en});return m};
+const catList=()=>{if(db.settings.categories)return db.settings.categories;
+  const base=[...CATS.map(c=>c.split('|')[0]),...db.products.map(p=>p.cat)].filter((c,i,a)=>c&&a.indexOf(c)===i);
+  return base.map(c=>{const ps=db.products.filter(p=>p.cat===c);const en=(CATS.find(x=>x.startsWith(c+'|'))||'').split('|')[1]||(ps.find(p=>p.cat_en)||{}).cat_en||'';
+    const subs=[...new Set(ps.map(p=>p.sub).filter(Boolean))].map(sn=>({name:sn,name_en:(ps.find(p=>p.sub===sn&&p.sub_en)||{}).sub_en||''}));return{name:c,name_en:en,img:'',subs}})};
+const CAT_EN=()=>{const m={...EN_CAT};db.products.forEach(p=>{if(p.cat_en)m[p.cat]=p.cat_en;if(p.sub&&p.sub_en)m[p.sub]=p.sub_en});catList().forEach(c=>{if(c.name_en)m[c.name]=c.name_en;(c.subs||[]).forEach(x=>{if(x.name_en)m[x.name]=x.name_en})});return m};
 const pc=c=>en()?(CAT_EN()[c]||c):c;
 const zn=z=>en()?(z.name_en||z.name):z.name;
 function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=en()?'ltr':'rtl';$('#langBtn').textContent=en()?'العربية':'English';$('#q').placeholder=t('search');$('#cartLbl').textContent=t('cart');$('#cartTitle').textContent=t('cartT');$('#footAddr').textContent=t('foot');setName()}
@@ -264,13 +268,13 @@ let sub=null,tag=null;
 function renderShop(){
   $('#searchBox').style.display='';
   const vis=db.products.filter(p=>p.visible);
-  const order=[...CATS.map(c=>c.split('|')[0]),...new Set(vis.map(p=>p.cat))].filter((c,i,a)=>a.indexOf(c)===i&&vis.some(p=>p.cat===c));
+  const order=[...catList().map(c=>c.name),...new Set(vis.map(p=>p.cat))].filter((c,i,a)=>a.indexOf(c)===i&&vis.some(p=>p.cat===c));
   const q=$('#q').value.trim().toLowerCase();
   const list=vis.filter(p=>(cat==='الكل'||p.cat===cat)&&(!sub||p.sub===sub)&&(!tag||(p.tags||[]).includes(tag))&&(!q||(p.name+p.desc+p.cat+(p.sub||'')+(p.name_en||'')+(p.desc_en||'')+(p.cat_en||'')+(p.sub_en||'')).toLowerCase().includes(q)));
-  const subs=cat==='الكل'?[]:[...new Set(vis.filter(p=>p.cat===cat).map(p=>p.sub).filter(Boolean))];
+  const ci=catList().find(x=>x.name===cat);const subs=cat==='الكل'?[]:[...new Set([...((ci&&ci.subs)||[]).map(x=>x.name),...vis.filter(p=>p.cat===cat).map(p=>p.sub)])].filter(x=>x&&vis.some(p=>p.cat===cat&&p.sub===x));
   const tags=[...new Set(vis.flatMap(p=>p.tags||[]))];
   const home=cat==='الكل'&&!q&&!tag;
-  const cover=c=>{const p=vis.find(p=>p.cat===c&&(p.img||p.vars.some(v=>v.img)));return p?(p.img||p.vars.find(v=>v.img).img):''};
+  const cover=c=>{const ci=catList().find(x=>x.name===c);if(ci&&ci.img)return ci.img;const p=vis.find(p=>p.cat===c&&(p.img||p.vars.some(v=>v.img)));return p?(p.img||p.vars.find(v=>v.img).img):''};
   const b=B();const T=en()?(b.title_en||b.title):b.title,S=en()?(b.sub_en||b.sub):b.sub,P=en()&&b.pills_en&&b.pills_en.some(Boolean)?b.pills_en:b.pills;
   const title=tag?(en()?TAG_EN[tag]||tag:tag):cat==='الكل'?(q?(en()?'Search results':'نتائج البحث'):(en()?'All products':'كل المنتجات')):pc(sub||cat);
   $('#app').innerHTML=`
@@ -356,10 +360,10 @@ function renderAdmin(){
     const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
     if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
+  const T={orders:'الطلبات',products:'المنتجات',cats:'الأقسام',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,cats:paneCats,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -398,15 +402,15 @@ function paneProducts(){
   draw();$('#pq').addEventListener('input',draw);$('#newP').addEventListener('click',()=>editProduct(null));
 }
 function editProduct(id){
-  const src=id?db.products.find(p=>p.id===id):{id:'n'+Date.now().toString(36),name:'',cat:'',kind:'box',desc:'',unit:'قطعة',ask:false,visible:true,vars:[{label:'قطعة',price:0,stock:null}]};
+  const src=id?db.products.find(p=>p.id===id):{id:'n'+Date.now().toString(36),name:'',cat:(catList()[0]||{}).name||'',kind:'box',desc:'',unit:'قطعة',ask:false,visible:true,vars:[{label:'قطعة',price:0,stock:null}]};
   const p=JSON.parse(JSON.stringify(src));let confirmDel=false;
   const cats=[...new Set(db.products.map(x=>x.cat))];
   const draw=()=>{
   $('#modal').innerHTML=`<div class="dh"><h2>${id?'تعديل منتج':'منتج جديد'}</h2><button class="x" data-close aria-label="إغلاق">×</button></div><form class="db" id="pf">
   <div class="row"><div class="mini" style="width:90px;height:90px">${pic(p)}</div><div><label for="pimg" style="margin-top:0">صورة المنتج</label><input id="pimg" type="file" accept="image/*">${p.img?'<button type="button" class="btn alt" id="rmimg" style="min-height:36px;padding:4px 10px;margin-top:6px">إزالة الصورة</button>':''}</div></div>
   <label for="fn">اسم المنتج</label><input id="fn" type="text" required value="${esc(p.name)}">
-  <label for="fc">التصنيف</label><input id="fc" type="text" list="cl" required value="${esc(p.cat)}"><datalist id="cl">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
-  <label for="fsub">القسم الفرعي</label><input id="fsub" type="text" list="sl" value="${esc(p.sub||'')}"><datalist id="sl">${[...new Set(db.products.map(x=>x.sub).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+  <label for="fc">القسم الرئيسي</label><select id="fc" required>${catList().map(c=>`<option ${c.name===p.cat?'selected':''}>${esc(c.name)}</option>`).join('')}${p.cat&&!catList().some(c=>c.name===p.cat)?`<option selected>${esc(p.cat)}</option>`:''}</select>
+  <label for="fsub">القسم الفرعي</label><select id="fsub"><option value="">—</option>${((catList().find(c=>c.name===p.cat)||catList()[0]||{}).subs||[]).map(x=>`<option ${x.name===p.sub?'selected':''}>${esc(x.name)}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">لإضافة قسم جديد: تبويب «الأقسام».</p>
   <label for="ftags">المناسبات (افصلي بفاصلة: عيد، رمضان، تخرج…)</label><input id="ftags" type="text" value="${esc((p.tags||[]).join('، '))}">
   <label for="fd">الوصف</label><textarea id="fd">${esc(p.desc)}</textarea>
   <label for="fne">الاسم بالإنجليزي</label><input id="fne" type="text" dir="ltr" value="${esc(p.name_en||'')}">
@@ -416,9 +420,10 @@ function editProduct(id){
   <label>الأحجام / الأنواع – صورة (اختياري) | الاسم | السعر بالدينار | الكمية (فاضي = غير محدود)</label><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
   <button type="button" class="btn alt" id="addv">+ حجم آخر</button>
   <div class="row" style="justify-content:space-between;margin-top:18px">${id?(confirmDel?`<span class="row"><span class="oos">متأكد؟</span><button type="button" class="btn danger" id="del2">احذف نهائياً</button><button type="button" class="btn alt" id="del0">لا</button></span>`:'<button type="button" class="btn alt" id="del" style="color:var(--bad)">حذف المنتج</button>'):'<span></span>'}<button class="btn">حفظ</button></div></form>`;
-  const sync=()=>{p.sub=$('#fsub').value.trim();p.tags=$('#ftags').value.split(/[,،]/).map(x=>x.trim()).filter(Boolean);p.name_en=$('#fne').value;p.desc_en=$('#fde').value;p.name=$('#fn').value;p.cat=$('#fc').value;p.desc=$('#fd').value;p.unit=$('#fu').value;p.ask=$('#fa').checked;
+  const sync=()=>{p.sub=$('#fsub').value;{const c=catList().find(x=>x.name===$('#fc').value);p.cat_en=c?c.name_en:'';p.sub_en=((c&&c.subs)||[]).find(x=>x.name===p.sub)?.name_en||''};p.tags=$('#ftags').value.split(/[,،]/).map(x=>x.trim()).filter(Boolean);p.name_en=$('#fne').value;p.desc_en=$('#fde').value;p.name=$('#fn').value;p.cat=$('#fc').value;p.desc=$('#fd').value;p.unit=$('#fu').value;p.ask=$('#fa').checked;
     p.vars=p.vars.map((v,i)=>({...v,label:$(`[data-vl="${i}"]`).value,price:+$(`[data-vp="${i}"]`).value||0,stock:$(`[data-vs="${i}"]`).value===''?null:+$(`[data-vs="${i}"]`).value}))};
   document.querySelectorAll('[data-vimg]').forEach(x=>x.onchange=e=>{const f=e.target.files[0];if(!f)return;sync();shrink(f,700,d=>{p.vars[+x.dataset.vimg].img=d;draw()})});
+  $('#fc').onchange=()=>{sync();p.sub='';draw()};
   $('#addv').onclick=()=>{sync();p.vars.push({label:'',price:0,stock:null});draw()};
   document.querySelectorAll('[data-vx]').forEach(b=>b.onclick=()=>{sync();p.vars.splice(+b.dataset.vx,1);draw()});
   $('#pimg').onchange=e=>{const f=e.target.files[0];if(!f)return;sync();const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,600/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);p.img=c.toDataURL('image/jpeg',.8);URL.revokeObjectURL(im.src);draw()};im.src=URL.createObjectURL(f)};
@@ -454,6 +459,41 @@ function paneFront(){
   const pushB=async()=>{b.imgs=await Promise.all(b.imgs.map(uploadImg));b.logo=await uploadImg(b.logo);db.settings.banner=b;return saveSettings()};
   $('#bview').onclick=async()=>{sync();if(await pushB()){setName();location.hash=''}};
   $('#ff').onsubmit=async e=>{e.preventDefault();sync();if(await pushB()){setName();toast('تم حفظ الواجهة');draw()}};};
+  draw();
+}
+function paneCats(){
+  const L=JSON.parse(JSON.stringify(catList())).map(c=>({...c,orig:c.name,subs:(c.subs||[]).map(x=>({...x,orig:x.name}))}));let askDel=-1;
+  const cnt=(c,sname)=>db.products.filter(p=>p.cat===c&&(sname==null||p.sub===sname)).length;
+  const draw=()=>{$('#pane').innerHTML=`<p class="note" style="margin-top:0">رتّبي الأقسام بالأسهم، وعدّلي الأسماء بالعربي والإنجليزي. تغيير اسم قسم ينقل منتجاته معه تلقائياً. لا يمكن حذف قسم فيه منتجات – انقليها أولاً.</p>
+  <div id="cl2">${L.map((c,i)=>`<div class="kpi" style="margin-bottom:12px"><div class="row" style="align-items:flex-start">
+   <label class="mini" style="margin:0;cursor:pointer;width:64px;height:64px" title="صورة القسم (اختياري)">${c.img?`<img src="${c.img}" alt="">`:'<span style="font-size:22px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-ci="${i}" hidden></label>
+   <div style="flex:1;min-width:200px"><div class="vrow" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin:0"><input type="text" data-cn="${i}" value="${esc(c.name)}" aria-label="اسم القسم" placeholder="اسم القسم"><input type="text" dir="ltr" data-ce="${i}" value="${esc(c.name_en||'')}" aria-label="English" placeholder="English name"></div>
+   <span class="note">${cnt(c.orig)} منتج</span></div>
+   <div class="row"><button type="button" class="btn alt" data-up="${i}" ${i?'':'disabled'} aria-label="لفوق" style="min-height:40px;padding:6px 12px">↑</button><button type="button" class="btn alt" data-dn="${i}" ${i<L.length-1?'':'disabled'} aria-label="لتحت" style="min-height:40px;padding:6px 12px">↓</button>
+   ${askDel===i?`<button type="button" class="btn danger" data-cdel2="${i}" style="min-height:40px;padding:6px 12px">تأكيد الحذف</button>`:`<button type="button" class="btn alt" data-cdel="${i}" ${cnt(c.orig)?'disabled title="فيه منتجات"':''} style="min-height:40px;padding:6px 12px;color:var(--bad)">حذف</button>`}</div></div>
+   <div style="margin-top:10px;padding-inline-start:74px">${c.subs.map((x,j)=>`<div class="vrow" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto 44px;align-items:center"><input type="text" data-sn="${i}.${j}" value="${esc(x.name)}" aria-label="قسم فرعي"><input type="text" dir="ltr" data-se="${i}.${j}" value="${esc(x.name_en||'')}" aria-label="English"><span class="note">${cnt(c.orig,x.orig)}</span><button type="button" data-sdel="${i}.${j}" ${cnt(c.orig,x.orig)?'disabled title="فيه منتجات"':''} aria-label="حذف">×</button></div>`).join('')}
+   <button type="button" class="btn alt" data-sadd="${i}" style="min-height:38px;padding:4px 14px">+ قسم فرعي</button></div></div>`).join('')}</div>
+  <div class="row" style="justify-content:space-between;margin-top:6px"><button type="button" class="btn alt" id="cadd">+ قسم رئيسي</button><button type="button" class="btn" id="csave">حفظ الأقسام</button></div>`;
+  const sync=()=>L.forEach((c,i)=>{c.name=$(`[data-cn="${i}"]`).value.trim();c.name_en=$(`[data-ce="${i}"]`).value.trim();c.subs.forEach((x,j)=>{x.name=$(`[data-sn="${i}.${j}"]`).value.trim();x.name_en=$(`[data-se="${i}.${j}"]`).value.trim()})});
+  const on=(sel,fn)=>document.querySelectorAll(sel).forEach(b=>b.onclick=()=>{sync();fn(b);draw()});
+  on('[data-up]',b=>{const i=+b.dataset.up;[L[i-1],L[i]]=[L[i],L[i-1]]});
+  on('[data-dn]',b=>{const i=+b.dataset.dn;[L[i+1],L[i]]=[L[i],L[i+1]]});
+  on('[data-cdel]',b=>{askDel=+b.dataset.cdel});on('[data-cdel2]',b=>{L.splice(+b.dataset.cdel2,1);askDel=-1});
+  on('[data-sadd]',b=>{L[+b.dataset.sadd].subs.push({name:'',name_en:''})});
+  on('[data-sdel]',b=>{const [i,j]=b.dataset.sdel.split('.').map(Number);L[i].subs.splice(j,1)});
+  on('#cadd',()=>{L.push({name:'',name_en:'',img:'',subs:[]})});
+  document.querySelectorAll('[data-ci]').forEach(x=>x.onchange=e=>{const f=e.target.files[0];if(!f)return;sync();shrink(f,900,d=>{L[+x.dataset.ci].img=d;draw()})});
+  $('#csave').onclick=async()=>{sync();
+    const names=L.map(c=>c.name);if(names.some(n=>!n))return toast('في قسم بدون اسم');if(new Set(names).size!==names.length)return toast('في قسمين بنفس الاسم');
+    for(const c of L){const sn=c.subs.map(x=>x.name).filter(Boolean);if(new Set(sn).size!==sn.length)return toast('أقسام فرعية مكررة في «'+c.name+'»');c.subs=c.subs.filter(x=>x.name)}
+    const btn=$('#csave');btn.disabled=true;btn.textContent='جاري الحفظ…';
+    for(const c of L)c.img=await uploadImg(c.img)||'';
+    const changed=[];db.products.forEach(p=>{const c=L.find(x=>x.orig===p.cat);if(!c)return;const sx=c.subs.find(x=>x.orig&&x.orig===p.sub);
+      const nc=c.name,ncen=c.name_en,ns=sx?sx.name:p.sub,nsen=sx?sx.name_en:p.sub_en;
+      if(p.cat!==nc||p.cat_en!==ncen||p.sub!==ns||p.sub_en!==nsen){p.cat=nc;p.cat_en=ncen;p.sub=ns;p.sub_en=nsen;changed.push(p)}});
+    if(changed.length){const r=await sb.from('products').upsert(changed.map(p=>({id:p.id,sort:db.products.indexOf(p),data:p,updated_at:new Date().toISOString()})));if(r.error){btn.disabled=false;btn.textContent='حفظ الأقسام';return fail('ما انحفظت الأقسام',r.error)}}
+    db.settings.categories=L.map(({orig,...c})=>({...c,subs:c.subs.map(({orig,...x})=>x)}));
+    if(await saveSettings()){toast('تم حفظ الأقسام'+(changed.length?` – انتقل ${changed.length} منتج`:''));paneCats()}else{btn.disabled=false;btn.textContent='حفظ الأقسام'}};};
   draw();
 }
 async function paneAccount(){
