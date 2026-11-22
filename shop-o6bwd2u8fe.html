@@ -391,10 +391,10 @@ function renderAdmin(){
     const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
     if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',cats:'الأقسام',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
+  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,cats:paneCats,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -428,7 +428,7 @@ function paneProducts(){
   const FL={hidden:['مخفية',p=>!p.visible],ask:['سعر عند الطلب',p=>p.ask],old:['سعر قديم',p=>!!p.date],noimg:['بدون صورة',p=>!(p.img||p.vars.some(v=>v.img))],low:['كمية قليلة',p=>p.vars.some(v=>v.stock!=null&&v.stock<10)]};
   const known=new Set(cats.map(c=>c.name));const orphan=P.filter(p=>!known.has(p.cat));
   const inCat=(p,c,sb)=>(c==='__none'?!known.has(p.cat):(!c||p.cat===c))&&(!sb||(sb==='__none'?!p.sub:p.sub===sb));
-  const match=p=>inCat(p,pf.cat,pf.sub)&&(!pf.flt||FL[pf.flt][1](p))&&(!pf.q||(p.name+' '+(p.name_en||'')).toLowerCase().includes(pf.q.toLowerCase()));
+  const match=p=>inCat(p,pf.cat,pf.sub)&&(!pf.flt||FL[pf.flt][1](p))&&(!pf.q||(p.name+' '+(p.name_en||'')+' '+p.vars.map(v=>v.sku||'').join(' ')).toLowerCase().includes(pf.q.toLowerCase()));
   const side=`<nav class="pside"><button class="pcat ${!pf.cat?'on':''}" data-pc="">كل المنتجات <span>${P.length}</span></button>
    ${cats.map(c=>`<button class="pcat ${pf.cat===c.name&&!pf.sub?'on':''}" data-pc="${esc(c.name)}">${esc(c.name)} <span>${P.filter(p=>p.cat===c.name).length}</span></button>
    ${pf.cat===c.name?`<div class="psubs">${(c.subs||[]).map(x=>`<button class="psub ${pf.sub===x.name?'on':''}" data-pc="${esc(c.name)}" data-ps="${esc(x.name)}">${esc(x.name)} <span>${P.filter(p=>p.cat===c.name&&p.sub===x.name).length}</span></button>`).join('')}${P.some(p=>p.cat===c.name&&!p.sub)?`<button class="psub ${pf.sub==='__none'?'on':''}" data-pc="${esc(c.name)}" data-ps="__none">بدون قسم فرعي <span>${P.filter(p=>p.cat===c.name&&!p.sub).length}</span></button>`:''}</div>`:''}`).join('')}
@@ -489,13 +489,13 @@ function editProduct(id,pre={}){
   <p class="note" style="margin:4px 0 8px">مثلاً: المقاس، اللون، الشكل. اكتبي القيم مفصولة بفاصلة، ثم اضغطي «توليد التركيبات» لتطلع كل تركيبة بسطر بسعرها وكميتها.</p>
   ${(p.opts||[]).map((o,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr) 44px"><input type="text" data-on="${i}" value="${esc(o.name)}" placeholder="اسم الخيار (اللون)" aria-label="اسم الخيار"><input type="text" dir="ltr" data-one="${i}" value="${esc(o.name_en||'')}" placeholder="English (Colour)" aria-label="English"><input type="text" data-ovs="${i}" value="${esc(o.values.join('، '))}" placeholder="أبيض، أسود، ذهبي" aria-label="القيم"><button type="button" data-ox="${i}" aria-label="حذف الخيار">×</button></div>`).join('')}
   <div class="row">${(p.opts||[]).length<3?'<button type="button" class="btn alt" id="addo" style="min-height:38px;padding:4px 14px">+ خيار</button>':''}${(p.opts||[]).length?'<button type="button" class="btn gold" id="geno" style="min-height:38px;padding:4px 14px">توليد التركيبات</button>':''}</div></div>
-  <label>${(p.opts||[]).length?'التركيبات':'الأحجام / الأنواع'} – صورة (اختياري) | الاسم | السعر بالدينار | الكمية (فاضي = غير محدود)</label>
-  <div class="row" style="margin-bottom:6px"><input type="number" step="0.005" min="0" id="allp" placeholder="سعر موحّد" dir="ltr" style="max-width:150px" aria-label="سعر موحد"><button type="button" class="btn alt" id="setallp" style="min-height:40px;padding:4px 12px">طبّقي السعر على الكل</button></div><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
+  <label>${(p.opts||[]).length?'التركيبات':'الأحجام / الأنواع'} – صورة (اختياري) | الاسم | الرمز | السعر بالدينار | الكمية (فاضي = غير محدود)</label>
+  <div class="row" style="margin-bottom:6px"><input type="number" step="0.005" min="0" id="allp" placeholder="سعر موحّد" dir="ltr" style="max-width:150px" aria-label="سعر موحد"><button type="button" class="btn alt" id="setallp" style="min-height:40px;padding:4px 12px">طبّقي السعر على الكل</button></div><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="text" data-vk="${i}" value="${esc(v.sku||'')}" placeholder="الرمز / الباركود" aria-label="الرمز" dir="ltr"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
   <button type="button" class="btn alt" id="addv">+ حجم آخر</button>
   <div class="row" style="justify-content:space-between;margin-top:18px">${id?(confirmDel?`<span class="row"><span class="oos">متأكد؟</span><button type="button" class="btn danger" id="del2">احذف نهائياً</button><button type="button" class="btn alt" id="del0">لا</button></span>`:'<button type="button" class="btn alt" id="del" style="color:var(--bad)">حذف المنتج</button>'):'<span></span>'}<button class="btn">حفظ</button></div></form>`;
   const syncO=()=>{if(!p.opts)return;p.opts=p.opts.map((o,i)=>({name:$(`[data-on="${i}"]`).value.trim(),name_en:$(`[data-one="${i}"]`).value.trim(),values:$(`[data-ovs="${i}"]`).value.split(/[,،]/).map(x=>x.trim()).filter(Boolean)}))};
   const sync=()=>{syncO();p.sub=$('#fsub').value;{const c=catList().find(x=>x.name===$('#fc').value);p.cat_en=c?c.name_en:'';p.sub_en=((c&&c.subs)||[]).find(x=>x.name===p.sub)?.name_en||''};p.tags=$('#ftags').value.split(/[,،]/).map(x=>x.trim()).filter(Boolean);p.name_en=$('#fne').value;p.desc_en=$('#fde').value;p.name=$('#fn').value;p.cat=$('#fc').value;p.desc=$('#fd').value;p.unit=$('#fu').value;p.ask=$('#fa').checked;
-    p.vars=p.vars.map((v,i)=>({...v,label:$(`[data-vl="${i}"]`).value,price:+$(`[data-vp="${i}"]`).value||0,stock:$(`[data-vs="${i}"]`).value===''?null:+$(`[data-vs="${i}"]`).value}))};
+    p.vars=p.vars.map((v,i)=>({...v,sku:$(`[data-vk="${i}"]`).value.trim()||undefined,label:$(`[data-vl="${i}"]`).value,price:+$(`[data-vp="${i}"]`).value||0,stock:$(`[data-vs="${i}"]`).value===''?null:+$(`[data-vs="${i}"]`).value}))};
   document.querySelectorAll('[data-vimg]').forEach(x=>x.onchange=e=>{const f=e.target.files[0];if(!f)return;sync();shrink(f,700,d=>{p.vars[+x.dataset.vimg].img=d;draw()})});
   $('#fc').onchange=()=>{sync();p.sub='';draw()};
   $('#addo')&&($('#addo').onclick=()=>{sync();(p.opts=p.opts||[]).push({name:'',name_en:'',values:[]});draw()});
@@ -542,6 +542,80 @@ function paneFront(){
   $('#bview').onclick=async()=>{sync();if(await pushB()){setName();location.hash=''}};
   $('#ff').onsubmit=async e=>{e.preventDefault();sync();if(await pushB()){setName();toast('تم حفظ الواجهة');draw()}};};
   draw();
+}
+let sf={q:'',f:''},sdirty=new Map();
+const loadXLSX=()=>window.XLSX?Promise.resolve():new Promise((ok,no)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=()=>no(new Error('xlsx'));document.head.appendChild(sc)});
+const vrows=()=>db.products.flatMap(p=>p.vars.map((v,vi)=>({p,v,vi,key:p.id+':'+vi})));
+function paneStock(){
+  const R=vrows();const tracked=R.filter(r=>r.v.stock!=null);
+  const F={nosku:['بدون رمز',r=>!r.v.sku],out:['نفدت',r=>r.v.stock!=null&&r.v.stock<=0],low:['قليلة (أقل من 10)',r=>r.v.stock!=null&&r.v.stock>0&&r.v.stock<10],unl:['غير محدودة',r=>r.v.stock==null]};
+  $('#pane').innerHTML=`<div class="kpis"><div class="kpi"><b>${tracked.length}</b><span>أصناف كميتها متابَعة من أصل ${R.length}</span></div><div class="kpi"><b>${R.filter(F.out[1]).length}</b><span>نفدت</span></div><div class="kpi"><b>${R.filter(F.low[1]).length}</b><span>كمية قليلة</span></div><div class="kpi"><b>${R.filter(F.nosku[1]).length}</b><span>بدون رمز/باركود</span></div></div>
+  <div class="toolbar"><input id="sq" type="text" placeholder="ابحثي بالاسم أو امسحي الباركود" value="${esc(sf.q)}" style="max-width:340px" autocomplete="off"><div class="row"><button class="btn gold" id="simp">استيراد من الكاشير (Excel/CSV)</button><button class="btn alt" id="sexp">تصدير Excel</button></div></div>
+  <div class="occ" style="margin-bottom:10px">${Object.entries(F).map(([k,[n,f]])=>`<button class="ochip ${sf.f===k?'on':''}" data-sfl="${k}">${n} <b>${R.filter(f).length}</b></button>`).join('')}</div>
+  <div id="ssave"></div><div id="slist"></div>`;
+  const draw=()=>{const q=sf.q.trim().toLowerCase();let L=R.filter(r=>(!sf.f||F[sf.f][1](r))&&(!q||(r.p.name+' '+(r.p.name_en||'')+' '+r.v.label+' '+(r.v.sku||'')).toLowerCase().includes(q)));
+    const more=L.length>250;L=L.slice(0,250);
+    $('#slist').innerHTML=L.length?`<table class="stack"><thead><tr><th></th><th>المنتج</th><th>الحجم / اللون</th><th>الرمز / الباركود</th><th>الكمية</th></tr></thead><tbody>${L.map(r=>{const d=sdirty.get(r.key)||{};const sk=d.sku!==undefined?d.sku:(r.v.sku||'');const st=d.stock!==undefined?d.stock:r.v.stock;
+      return `<tr data-row="${r.key}"><td><div class="mini">${r.v.img?`<img src="${r.v.img}" alt="">`:pic(r.p)}</div></td><td><b>${esc(r.p.name)}</b><div class="note">${esc(r.p.sub||r.p.cat||'')}</div></td><td>${esc(r.v.label)}</td>
+      <td><input type="text" dir="ltr" data-ssku="${r.key}" value="${esc(sk)}" placeholder="—" style="max-width:170px" aria-label="الرمز"></td>
+      <td class="n"><div class="qty" style="border-radius:12px"><button type="button" data-sd="${r.key}" data-n="-1" aria-label="أقل">−</button><input type="number" min="0" data-sst="${r.key}" value="${st??''}" placeholder="∞" dir="ltr" style="width:80px;border:0;text-align:center;min-height:40px" aria-label="الكمية"><button type="button" data-sd="${r.key}" data-n="1" aria-label="أكثر">+</button></div></td></tr>`}).join('')}</tbody></table>${more?'<p class="note">يظهر أول 250 – استخدمي البحث أو الفلاتر.</p>':''}`:'<div class="empty">ما في أصناف بهالاختيار.</div>';
+    $('#ssave').innerHTML=sdirty.size?`<div class="bulkbar"><b>${sdirty.size} تعديل غير محفوظ</b><button class="btn gold" id="sgo">حفظ التغييرات</button><button class="btn alt" id="sundo">تراجع</button></div>`:'';
+    const mark=(key,k,val)=>{const d=sdirty.get(key)||{};d[k]=val;sdirty.set(key,d);drawBar()};
+    document.querySelectorAll('[data-ssku]').forEach(x=>x.oninput=()=>mark(x.dataset.ssku,'sku',x.value.trim()));
+    document.querySelectorAll('[data-sst]').forEach(x=>x.oninput=()=>mark(x.dataset.sst,'stock',x.value===''?null:Math.max(0,+x.value)));
+    document.querySelectorAll('[data-sd]').forEach(b=>b.onclick=()=>{const i=$(`[data-sst="${b.dataset.sd}"]`);const v=Math.max(0,(+i.value||0)+ +b.dataset.n);i.value=v;mark(b.dataset.sd,'stock',v)});
+    drawBar()};
+  const drawBar=()=>{$('#ssave').innerHTML=sdirty.size?`<div class="bulkbar"><b>${sdirty.size} تعديل غير محفوظ</b><button class="btn gold" id="sgo">حفظ التغييرات</button><button class="btn alt" id="sundo">تراجع</button></div>`:'';
+    if(!sdirty.size)return;
+    $('#sundo').onclick=()=>{sdirty.clear();draw()};
+    $('#sgo').onclick=async()=>{const ch=new Map();sdirty.forEach((d,key)=>{const [pid,vi]=key.split(':');const p=db.products.find(x=>x.id===pid);if(!p)return;const v=p.vars[+vi];if(d.sku!==undefined)v.sku=d.sku||undefined;if(d.stock!==undefined)v.stock=d.stock;ch.set(pid,p)});
+      const r=await sb.from('products').upsert([...ch.values()].map(p=>({id:p.id,sort:db.products.indexOf(p),data:p,updated_at:new Date().toISOString()})));
+      if(r.error)return fail('ما انحفظ المخزون',r.error);toast('تم حفظ '+sdirty.size+' تعديل');sdirty.clear();paneStock()}};
+  draw();
+  $('#sq').oninput=e=>{sf.q=e.target.value;draw()};
+  $('#sq').onkeydown=e=>{if(e.key!=='Enter')return;const code=e.target.value.trim();const hit=R.find(r=>r.v.sku&&r.v.sku===code);if(hit){const i=$(`[data-sst="${hit.key}"]`);if(i){i.focus();i.select();i.closest('tr').scrollIntoView({block:'center'})}}else toast('ما في صنف بهالرمز')};
+  document.querySelectorAll('[data-sfl]').forEach(b=>b.onclick=()=>{sf.f=sf.f===b.dataset.sfl?'':b.dataset.sfl;paneStock()});
+  $('#sexp').onclick=async()=>{try{await loadXLSX()}catch(e){return toast('تعذّر تحميل أداة Excel')}
+    const rows=vrows().map(r=>({'المعرف':r.key,'المنتج':r.p.name,'الحجم / اللون':r.v.label,'الرمز':r.v.sku||'','السعر':+r.v.price,'الكمية':r.v.stock??'','القسم':r.p.cat||'','القسم الفرعي':r.p.sub||''}));
+    const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:12},{wch:34},{wch:22},{wch:16},{wch:8},{wch:8},{wch:22},{wch:22}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'المخزون');
+    XLSX.writeFile(wb,'sn-stock-'+new Date().toISOString().slice(0,10)+'.xlsx')};
+  $('#simp').onclick=()=>importStock();
+}
+async function importStock(){
+  try{await loadXLSX()}catch(e){return toast('تعذّر تحميل أداة Excel')}
+  let rows=[],cols=[],map={},opt={qty:true,price:false};
+  const guess=(re)=>cols.find(c=>re.test(String(c).toLowerCase()))||'';
+  const draw=()=>{const R=vrows();const byKey=new Map(R.map(r=>[r.key,r]));const bySku=new Map(R.filter(r=>r.v.sku).map(r=>[String(r.v.sku).trim(),r]));
+    let plan=[],unmatched=[];
+    if(rows.length&&(map.code||map.key)){rows.forEach(row=>{const code=map.code?String(row[map.code]??'').trim():'';const key=map.key?String(row[map.key]??'').trim():'';
+      const r=(key&&byKey.get(key))||(code&&bySku.get(code));if(!r){if(code||key)unmatched.push(code||key);return}
+      const ch={r};const num=x=>{const n=parseFloat(String(x).replace(/[^\d.\-]/g,''));return isNaN(n)?null:n};
+      if(key&&code&&code!==(r.v.sku||''))ch.sku=code;
+      if(opt.qty&&map.qty&&row[map.qty]!==''&&row[map.qty]!=null){const n=num(row[map.qty]);if(n!=null&&n!==r.v.stock)ch.stock=Math.max(0,Math.round(n))}
+      if(opt.price&&map.price&&row[map.price]!==''&&row[map.price]!=null){const n=num(row[map.price]);if(n!=null&&n>0&&n!==+r.v.price)ch.price=n}
+      if(ch.sku!==undefined||ch.stock!==undefined||ch.price!==undefined)plan.push(ch)})}
+    const colSel=(id,label,val)=>`<label for="${id}">${label}</label><select id="${id}"><option value="">—</option>${cols.map(c=>`<option ${c===val?'selected':''}>${esc(c)}</option>`).join('')}</select>`;
+    $('#modal').innerHTML=`<div class="dh"><h2>استيراد المخزون من الكاشير</h2><button class="x" data-close aria-label="إغلاق">×</button></div><div class="db">
+    <p class="note" style="margin-top:0">صدّري قائمة الأصناف من نظام الكاشير كملف Excel أو CSV فيه رمز/باركود الصنف والكمية، وارفعيه هون. الربط يتم بالرمز.</p>
+    <input type="file" id="ifile" accept=".xlsx,.xls,.csv">
+    ${cols.length?`<p class="note">${rows.length} سطر بالملف.</p>
+      ${colSel('mcode','عمود الرمز / الباركود',map.code)}${colSel('mqty','عمود الكمية',map.qty)}${colSel('mprice','عمود السعر (اختياري)',map.price)}${cols.includes('المعرف')?colSel('mkey','عمود المعرف (من ملف التصدير)',map.key):''}
+      <label class="row" style="color:var(--ink)"><input type="checkbox" id="oq" ${opt.qty?'checked':''} style="width:20px;height:20px"> تحديث الكميات</label>
+      <label class="row" style="color:var(--ink)"><input type="checkbox" id="op" ${opt.price?'checked':''} style="width:20px;height:20px"> تحديث الأسعار كمان</label>
+      <div class="kpis" style="margin-top:12px"><div class="kpi"><b>${plan.length}</b><span>صنف رح يتعدّل</span></div><div class="kpi"><b>${unmatched.length}</b><span>رمز مش موجود بالمتجر</span></div></div>
+      ${plan.length?`<table><thead><tr><th>الصنف</th><th>التغيير</th></tr></thead><tbody>${plan.slice(0,40).map(c=>`<tr><td>${esc(c.r.p.name)}<div class="note">${esc(c.r.v.label)}</div></td><td class="note">${c.sku!==undefined?`رمز: ${esc(c.sku)}<br>`:''}${c.stock!==undefined?`كمية: ${c.r.v.stock??'∞'} ← <b>${c.stock}</b><br>`:''}${c.price!==undefined?`سعر: ${fmt(+c.r.v.price)} ← <b>${fmt(c.price)}</b>`:''}</td></tr>`).join('')}</tbody></table>${plan.length>40?`<p class="note">و${plan.length-40} غيرهم…</p>`:''}`:''}
+      ${unmatched.length?`<details style="margin-top:10px"><summary class="note">رموز من الملف مش مربوطة بأي منتج (${unmatched.length})</summary><p class="note" dir="ltr">${unmatched.slice(0,200).map(esc).join(', ')}</p><p class="note">أضيفي هالرموز للمنتجات من تبويب المخزون أو من تعديل المنتج، أو تجاهليها إذا ما بتبيعيها أونلاين.</p></details>`:''}
+      <button class="btn gold" id="igo" style="width:100%;margin-top:14px" ${plan.length?'':'disabled'}>تطبيق ${plan.length} تعديل</button>`:''}
+    </div>`;
+    $('#ifile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const wb=XLSX.read(await f.arrayBuffer());const ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});cols=rows.length?Object.keys(rows[0]):[];
+      map={key:cols.includes('المعرف')?'المعرف':'',code:guess(/barcode|باركود|sku|code|رمز|كود|item ?no|رقم الصنف/),qty:guess(/qty|quantity|stock|balance|كمية|الكمية|رصيد|الرصيد|موجود/),price:guess(/price|سعر|السعر/)};draw()};
+    if(cols.length){$('#mcode').onchange=e=>{map.code=e.target.value;draw()};$('#mqty').onchange=e=>{map.qty=e.target.value;draw()};$('#mprice').onchange=e=>{map.price=e.target.value;draw()};
+      $('#mkey')&&($('#mkey').onchange=e=>{map.key=e.target.value;draw()});$('#oq').onchange=e=>{opt.qty=e.target.checked;draw()};$('#op').onchange=e=>{opt.price=e.target.checked;draw()};
+      $('#igo')&&($('#igo').onclick=async()=>{const ch=new Map();plan.forEach(c=>{if(c.sku!==undefined)c.r.v.sku=c.sku;if(c.stock!==undefined)c.r.v.stock=c.stock;if(c.price!==undefined)c.r.v.price=c.price;ch.set(c.r.p.id,c.r.p)});
+        $('#igo').disabled=true;$('#igo').textContent='جاري التطبيق…';
+        const r=await sb.from('products').upsert([...ch.values()].map(p=>({id:p.id,sort:db.products.indexOf(p),data:p,updated_at:new Date().toISOString()})));
+        if(r.error){$('#igo').disabled=false;return fail('ما انطبق الاستيراد',r.error)}close();toast('تم تحديث '+plan.length+' صنف');paneStock()})}};
+  draw();show('#modal');
 }
 function paneCats(){
   const L=JSON.parse(JSON.stringify(catList())).map(c=>({...c,orig:c.name,subs:(c.subs||[]).map(x=>({...x,orig:x.name}))}));let askDel=-1;

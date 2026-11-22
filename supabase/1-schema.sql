@@ -99,7 +99,7 @@ begin
       update products set data = jsonb_set(data, array['vars', vi::text, 'stock'], to_jsonb(stock - q)), updated_at = now() where id = pid;
     end if;
     subtotal := subtotal + price * q;
-    lines := lines || jsonb_build_object('pid', pid, 'name', p->>'name', 'v', v->>'label', 'price', price, 'q', q);
+    lines := lines || jsonb_build_object('pid', pid, 'vi', vi, 'sku', v->>'sku', 'name', p->>'name', 'v', v->>'label', 'price', price, 'q', q);
   end loop;
 
   free_over := nullif(s->>'freeOver','')::numeric;
