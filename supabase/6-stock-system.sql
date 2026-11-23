@@ -279,6 +279,7 @@ begin
   end loop;
   if not dry_run then
     perform set_config('inv.nosync', '', true);
+    perform set_config('hist.src', 'استيراد ترست', true);
     update products set data = data, updated_at = now() where id is not null;   -- refresh website stock once
     update inv_imports set summary = jsonb_build_object('new', n_new, 'sales', n_sale, 'sold_qty', q_sale, 'purchases', n_buy, 'bought_qty', q_buy, 'opening', n_open, 'prices', n_price)
      where id = imp;

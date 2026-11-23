@@ -42,6 +42,7 @@ header{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:sat
 .hbtn:hover{background:var(--bg)}
 #cartBtn{background:var(--navy);color:#fff}
 #cartBtn:hover{background:#24397A}
+.linkish{background:none;border:0;padding:0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;text-align:start}
 .badge{background:var(--gold);color:#fff;border-radius:99px;min-width:22px;padding:0 6px;font-size:13px;font-weight:700;text-align:center}
 .wrap{max-width:1280px;margin:auto;padding:22px max(4vw,14px) 64px}
 /* banner */
@@ -416,10 +417,10 @@ function renderAdmin(){
     const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
     if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',settings:'الإعدادات',account:'حسابي'};
+  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',settings:'الإعدادات',account:'حسابي'};
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,settings:paneSettings,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,settings:paneSettings,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -516,7 +517,8 @@ function editProduct(id,pre={}){
   <label>${(p.opts||[]).length?'التركيبات':'الأحجام / الأنواع'} – صورة (اختياري) | الاسم | الرمز | السعر بالدينار | الكمية (فاضي = غير محدود)</label>
   <div class="row" style="margin-bottom:6px"><input type="number" step="0.005" min="0" id="allp" placeholder="سعر موحّد" dir="ltr" style="max-width:150px" aria-label="سعر موحد"><button type="button" class="btn alt" id="setallp" style="min-height:40px;padding:4px 12px">طبّقي السعر على الكل</button></div><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="text" data-vk="${i}" value="${esc(v.sku||'')}" placeholder="الرمز / الباركود" aria-label="الرمز" dir="ltr"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
   <button type="button" class="btn alt" id="addv">+ حجم آخر</button>
-  <div class="row" style="justify-content:space-between;margin-top:18px">${id?(confirmDel?`<span class="row"><span class="oos">متأكد؟</span><button type="button" class="btn danger" id="del2">احذف نهائياً</button><button type="button" class="btn alt" id="del0">لا</button></span>`:'<button type="button" class="btn alt" id="del" style="color:var(--bad)">حذف المنتج</button>'):'<span></span>'}<button class="btn">حفظ</button></div></form>`;
+  <div class="row" style="justify-content:space-between;margin-top:18px">${id?(confirmDel?`<span class="row"><span class="oos">متأكد؟</span><button type="button" class="btn danger" id="del2">احذف نهائياً</button><button type="button" class="btn alt" id="del0">لا</button></span>`:'<button type="button" class="btn alt" id="del" style="color:var(--bad)">حذف المنتج</button>'):'<span></span>'}<button class="btn">حفظ</button></div></form>${id?`<details style="margin-top:16px" id="phd"><summary style="cursor:pointer;font-weight:600">سجل التغييرات</summary><div id="phl" class="note">…</div></details>`:''}`;
+  $('#phd')&&($('#phd').ontoggle=()=>{if($('#phd').open)loadHist(id,$('#phl'))});
   const syncO=()=>{if(!p.opts)return;p.opts=p.opts.map((o,i)=>({name:$(`[data-on="${i}"]`).value.trim(),name_en:$(`[data-one="${i}"]`).value.trim(),values:$(`[data-ovs="${i}"]`).value.split(/[,،]/).map(x=>x.trim()).filter(Boolean)}))};
   const sync=()=>{syncO();p.sub=$('#fsub').value;{const c=catList().find(x=>x.name===$('#fc').value);p.cat_en=c?c.name_en:'';p.sub_en=((c&&c.subs)||[]).find(x=>x.name===p.sub)?.name_en||''};p.tags=$('#ftags').value.split(/[,،]/).map(x=>x.trim()).filter(Boolean);p.name_en=$('#fne').value;p.desc_en=$('#fde').value;p.name=$('#fn').value;p.cat=$('#fc').value;p.desc=$('#fd').value;p.unit=$('#fu').value;p.ask=$('#fa').checked;
     p.vars=p.vars.map((v,i)=>({...v,sku:$(`[data-vk="${i}"]`).value.trim()||undefined,label:$(`[data-vl="${i}"]`).value,price:+$(`[data-vp="${i}"]`).value||0,stock:$(`[data-vs="${i}"]`).value===''?null:+$(`[data-vs="${i}"]`).value}))};
@@ -680,6 +682,27 @@ function paneCats(){
     if(await saveSettings()){toast('تم حفظ الأقسام'+(changed.length?` – انتقل ${changed.length} منتج`:''));paneCats()}else{btn.disabled=false;btn.textContent='حفظ الأقسام'}};};
   draw();
 }
+/* ---------- history of product changes ---------- */
+const HF={name:'الاسم',name_en:'الاسم بالإنجليزي',cat:'القسم',sub:'القسم الفرعي',visible:'ظاهر بالمتجر',ask:'السعر عند الطلب',desc:'الوصف',desc_en:'الوصف بالإنجليزي',unit:'الوحدة',kind:'الأيقونة',tags:'المناسبات',img:'صورة المنتج',price:'السعر',sku:'رمز ترست',var_added:'حجم جديد',var_removed:'حجم محذوف',var_img:'صورة الحجم'};
+const hv=x=>x===true?'نعم':x===false?'لا':x==null||x===''?'—':Array.isArray(x)?(x.join('، ')||'—'):typeof x==='number'?String(x):String(x).length>70?esc(String(x).slice(0,70))+'…':esc(x);
+const hLine=c=>c.f==='snapshot'?'':`<div>${HF[c.f]||esc(c.f)}${c.v?` <span class="note">(${esc(c.v)})</span>`:''}: ${c.f==='var_added'?`<b>${hv(c.new)}</b>`:c.f==='var_removed'?`<s>${hv(c.old)}</s>`:`<s class="note">${hv(c.old)}</s> ← <b>${hv(c.new)}</b>`}</div>`;
+const hAct={added:'إضافة',changed:'تعديل',removed:'حذف'};
+function histRows(rows,withName){return rows.length?`<table><thead><tr><th>الوقت</th>${withName?'<th>المنتج</th>':''}<th>التغيير</th><th>بواسطة</th></tr></thead><tbody>${rows.map(h=>`<tr><td class="note" style="white-space:nowrap">${new Date(h.created_at).toLocaleString('ar-JO',{dateStyle:'short',timeStyle:'short'})}</td>${withName?`<td>${db.products.some(p=>p.id===h.product_id)?`<button type="button" class="linkish" data-ed="${esc(h.product_id)}">${esc(h.product_name||h.product_id)}</button>`:esc(h.product_name||h.product_id)}</td>`:''}<td><span class="badge">${hAct[h.action]}</span>${(h.changes||[]).map(hLine).join('')}${h.action==='removed'&&!db.products.some(p=>p.id===h.product_id)&&h.changes[0]&&h.changes[0].old?` <button type="button" class="btn alt" data-restore="${h.id}" style="min-height:34px;padding:2px 12px">استرجاع</button>`:''}</td><td class="note">${esc(h.by_name||'')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">ما في تغييرات مسجّلة.</div>'}
+let HROWS=[];
+async function loadHist(pid,host){const r=await sb.from('products_history').select('id,product_id,product_name,action,changes,by_name,created_at').eq('product_id',pid).order('created_at',{ascending:false}).limit(100);
+  if(!host.isConnected)return;host.innerHTML=r.error?(String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّلي ملف 8-product-history.sql':esc(r.error.message)):histRows(r.data,false)}
+let hf={q:'',who:'',act:''};
+async function paneHistory(){$('#pane').innerHTML='<div class="empty">جاري التحميل…</div>';
+  const r=await sb.from('products_history').select('id,product_id,product_name,action,changes,by_name,created_at').order('created_at',{ascending:false}).limit(1000);
+  if(r.error){$('#pane').innerHTML=`<div class="empty">${String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّلي ملف <b>supabase/8-product-history.sql</b> في Supabase.':esc(r.error.message)}</div>`;return}
+  HROWS=r.data;const who=[...new Set(HROWS.map(h=>h.by_name).filter(Boolean))];
+  $('#pane').innerHTML=`<div class="demo">كل تعديل على المنتجات بينسجل هون: مين عدّله، ومتى، وشو كان وشو صار. حركات الكميات موجودة بسجل <a href="/stock/" target="_blank" rel="noopener">نظام المخزون</a>.</div>
+  <div class="toolbar"><input type="search" id="hq" placeholder="ابحثي باسم المنتج" value="${esc(hf.q)}" style="flex:1 1 220px"><select id="hw" style="max-width:200px"><option value="">كل الأشخاص</option>${who.map(w=>`<option ${hf.who===w?'selected':''}>${esc(w)}</option>`).join('')}</select><select id="ha" style="max-width:160px"><option value="">كل الأنواع</option>${Object.entries(hAct).map(([k,v])=>`<option value="${k}" ${hf.act===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="hl"></div>`;
+  const draw=()=>{const q=norm(hf.q);const L=HROWS.filter(h=>(!q||norm(h.product_name||'').includes(q))&&(!hf.who||h.by_name===hf.who)&&(!hf.act||h.action===hf.act));
+    $('#hl').innerHTML=histRows(L.slice(0,300),true)+(L.length>300?`<p class="note">يظهر آخر 300 من ${L.length}.</p>`:'')+(HROWS.length===1000?'<p class="note">يظهر آخر 1000 تغيير.</p>':'')};
+  draw();$('#hq').oninput=e=>{hf.q=e.target.value;draw()};$('#hw').onchange=e=>{hf.who=e.target.value;draw()};$('#ha').onchange=e=>{hf.act=e.target.value;draw()};
+  $('#hl').onclick=async e=>{const b=e.target.closest('[data-restore]');if(!b)return;const h=HROWS.find(x=>x.id===+b.dataset.restore);const p=h&&h.changes[0]&&h.changes[0].old;if(!p)return;
+    b.disabled=true;if(await persist([p])){toast('تم استرجاع المنتج');paneHistory()}else b.disabled=false}}
 async function paneAccount(){
   const {data}=await sb.auth.getUser();const email=data?.user?.email||'';
   $('#pane').innerHTML=`<form id="pwf" style="max-width:420px"><p class="note" style="margin-top:0">مسجّلة الدخول باسم <b dir="ltr">${esc(email)}</b></p>
