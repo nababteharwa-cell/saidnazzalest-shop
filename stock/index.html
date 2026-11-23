@@ -111,6 +111,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:#F7F8FB}
 </style>
 <script src="/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="/stock/catalog.js"></script>
 </head>
 <body>
 <header><img src="/photos/b-logo.jpg" alt=""><b>مخزون سعيد نزال</b><div class="who" id="who"></div></header>
@@ -146,6 +147,7 @@ const lowOf=it=>it.qty>0&&it.min_qty!=null&&it.qty<=it.min_qty;
 const index=()=>{byId=new Map(items.map(i=>[i.id,i]));byCode=new Map();items.forEach(i=>{if(i.barcode)byCode.set(latin(i.barcode).trim(),i);byCode.set('#'+latin(i.code).trim(),i)});items.forEach(i=>i._n=norm(i.name+' '+(i.barcode||'')+' '+i.code))};
 const findCode=c=>{c=latin(c).trim();return byCode.get(c)||byCode.get('#'+c)||(/^\d+$/.test(c)?items.find(i=>i.barcode&&latin(i.barcode).replace(/^0+/,'')===c.replace(/^0+/,'')):null)};
 const COLS='id,code,barcode,name,price,qty,min_qty,grp,active,counted_at,trust_qty,trust_at,updated_at';
+async function fetchAll(table,cols,order){const out=[];for(let from=0;;from+=1000){const r=await sb.from(table).select(cols).order(order).range(from,from+999);if(r.error)throw r.error;out.push(...r.data);if(r.data.length<1000)break}return out}
 async function loadItems(){const out=[];for(let from=0;;from+=1000){const r=await sb.from('inv_items').select(COLS).order('id').range(from,from+999);if(r.error)throw r.error;out.push(...r.data);if(r.data.length<1000)break}
   items=out.map(i=>({...i,qty:+i.qty,price:i.price==null?null:+i.price,min_qty:i.min_qty==null?null:+i.min_qty,trust_qty:i.trust_qty==null?null:+i.trust_qty}));index()}
 async function refreshItems(ids){ids=[...new Set(ids)].filter(Boolean);for(let k=0;k<ids.length;k+=200){const r=await sb.from('inv_items').select(COLS).in('id',ids.slice(k,k+200));if(r.error)return;r.data.forEach(n=>{const o=byId.get(n.id);const v={...n,qty:+n.qty,price:n.price==null?null:+n.price,min_qty:n.min_qty==null?null:+n.min_qty,trust_qty:n.trust_qty==null?null:+n.trust_qty};if(o){Object.assign(o,v);o._n=norm(o.name+' '+(o.barcode||'')+' '+o.code)}else items.push(v)})}index()}
@@ -198,7 +200,7 @@ async function start(){
   $('#app').innerHTML='<div class="empty">جاري تحميل الأصناف…</div>';
   try{await loadItems()}catch(e){$('#app').innerHTML=`<div class="errbox">تعذّر التحميل: ${esc(emsg(e))}</div>`;return}
   if(isOwner()){const li=await sb.from('inv_imports').select('created_at,mode,summary').order('created_at',{ascending:false}).limit(1);lastImport=li.data&&li.data[0]}
-  const T=[['home','الرئيسية'],['items','الأصناف'],['record','بيع / استلام'],['count','الجرد'],...(isOwner()?[['import','استيراد ترست'],['link','ربط المتجر']]:[]),['reports','التقارير'],...(isOwner()?[['users','المستخدمين']]:[])];
+  const T=[['home','الرئيسية'],['items','الأصناف'],['record','بيع / استلام'],['count','الجرد'],...(isOwner()?[['import','استيراد ترست'],['link','المتجر']]:[]),['reports','التقارير'],...(isOwner()?[['users','المستخدمين']]:[])];
   $('#tabs').hidden=false;$('#tabs').innerHTML=T.map(([k,v])=>`<button class="tab" data-tab="${k}">${v}</button>`).join('');
   $('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b)go(b.dataset.tab)};
   go(location.hash.slice(1)||(items.length?'home':(isOwner()?'import':'home')))}
@@ -384,26 +386,29 @@ PANES.import=async()=>{
     ${mode==='daily'&&!s.sales&&!s.purchases&&!s.new?'<p class="okbox">ما في جديد منذ آخر استيراد.</p>':''}
     <button class="btn gold" id="tgo" style="width:100%;margin-top:12px">${mode==='opening'?'اعتماد الرصيد الافتتاحي':'تسجيل الحركات'}</button>`;
     $('#tgo').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='جاري الاستيراد…';const r=await sb.rpc('inv_import_trust',{rows:data,mode,file_name:f.name,dry_run:false});
-      if(r.error){b.disabled=false;b.textContent='حاولي مرة ثانية';return toast(emsg(r.error),4000)}await loadItems();lastImport={created_at:new Date().toISOString()};toast('تم الاستيراد ✓',3000);PANES.import()}}};
+      if(r.error){b.disabled=false;b.textContent='حاولي مرة ثانية';return toast(emsg(r.error),4000)}await loadItems();lastImport={created_at:new Date().toISOString()};
+      let added=0;if(mode==='daily'&&r.data.new){try{const P=await fetchAll('products','id,sort,data','sort');if(P.some(p=>/^t/.test(p.id)))added=await publishAll(P,false,null,true)||0}catch(e){}}
+      toast('تم الاستيراد ✓'+(added?' – '+added+' صنف جديد انضاف للمتجر':''),3500);PANES.import()}}};
 
 /* ---------- link website ---------- */
 let lk={q:'',f:'todo',open:null};
 PANES.link=async()=>{
   $('#app').innerHTML='<div class="empty">جاري تحميل منتجات الموقع…</div>';
-  const r=await sb.from('products').select('id,data').order('sort');if(r.error){$('#app').innerHTML=`<div class="errbox">${esc(emsg(r.error))}</div>`;return}
-  const V=r.data.flatMap(p=>(p.data.vars||[]).map((v,vi)=>({pid:p.id,vi,p:p.data,v,item:v.sku?findCode(v.sku):null})));
+  let r;try{r={data:await fetchAll('products','id,sort,data','sort')}}catch(e){$('#app').innerHTML=`<div class="errbox">${esc(emsg(e))}</div>`;return}
+  const P=r.data;const V=r.data.flatMap(p=>(p.data.vars||[]).map((v,vi)=>({pid:p.id,vi,p:p.data,v,item:v.sku?findCode(v.sku):null})));
   const tok=s=>norm(s).replace(/[^\p{L}\p{N} ]/gu,' ').split(' ').filter(w=>w.length>1);
   const IT=items.map(i=>({i,t:new Set(tok(i.name))}));
   const suggest=x=>{const want=new Set([...tok(x.p.name),...tok(x.v.label)]);const nums=[...want].filter(w=>/\d/.test(w));
     return IT.map(({i,t})=>{let s=0;want.forEach(w=>{if(t.has(w))s+=/\d/.test(w)?2:1});if(nums.length&&nums.every(n=>t.has(n)))s+=2;return[s/(Math.sqrt(t.size)+1),i]}).filter(x=>x[0]>0.5).sort((a,b)=>b[0]-a[0]).slice(0,5).map(x=>x[1])};
   const draw=()=>{const q=norm(lk.q);const L=V.filter(x=>(lk.f==='all'||(lk.f==='todo'?!x.item:!!x.item))&&(!q||norm(x.p.name+' '+x.v.label).includes(q)));
-    $('#app').innerHTML=`<h2>ربط منتجات الموقع بأصناف ترست</h2><div class="warnbox">لكل حجم/لون بالموقع اختاري صنف ترست المقابل. بعد الربط كمية الموقع بتصير نفس كمية المخزون، وطلبات الموقع بتنخصم من المخزون وبتظهر بالسجل.</div>
+    $('#app').innerHTML=`${publishCard(P)}<h2>ربط منتجات الموقع بأصناف ترست</h2><div class="warnbox">لكل حجم/لون بالموقع اختاري صنف ترست المقابل. بعد الربط كمية الموقع بتصير نفس كمية المخزون، وطلبات الموقع بتنخصم من المخزون وبتظهر بالسجل.</div>
     <div class="kpis"><div class="kpi"><b>${V.filter(x=>x.item).length}</b><span>مربوط</span></div><div class="kpi warn"><b>${V.filter(x=>!x.item).length}</b><span>غير مربوط</span></div></div>
     <div class="row"><input type="search" id="lq" placeholder="ابحثي بمنتجات الموقع" value="${esc(lk.q)}" style="flex:1 1 240px"><div class="chips" style="margin:0">${[['todo','غير مربوط'],['done','مربوط'],['all','الكل']].map(([k,n])=>`<button class="chip ${lk.f===k?'on':''}" data-lf="${k}">${n}</button>`).join('')}</div></div>
     <div id="ll" style="margin-top:10px">${L.slice(0,60).map((x,k)=>`<div class="card" data-lv="${x.pid}|${x.vi}"><div class="row sp"><div><b>${esc(x.p.name)}</b> <span class="note">– ${esc(x.v.label)} · ${x.v.price} د.أ</span></div>${x.item?`<span class="okbox" style="margin:0;padding:4px 10px">✓ ${esc(x.item.name)} · ${fq(x.item.qty)}</span>`:''}</div>
       ${lk.open===x.pid+'|'+x.vi?`<div class="lsug" style="margin-top:8px"><p class="note" style="margin:0 0 6px">اقتراحات:</p><div class="chips" style="margin:0 0 8px">${suggest(x).map(i=>`<button class="chip" data-pick="${i.id}">${esc(i.name)} <span class="code">${fq(i.qty)}</span></button>`).join('')||'<span class="note">ما في اقتراحات – ابحثي:</span>'}</div><div class="lpk"></div>${x.item?'<button class="btn sm alt" data-unl style="margin-top:8px">فك الربط</button>':''}</div>`:`<button class="btn sm ${x.item?'alt':''}" data-op style="margin-top:6px">${x.item?'تغيير':'ربط'}</button>`}</div>`).join('')}${L.length>60?'<p class="note">يظهر أول 60 – استخدمي البحث.</p>':''}${!L.length?'<div class="empty">ما في شي هون.</div>':''}</div>`;
     $('#lq').oninput=e=>{lk.q=e.target.value;const p=e.target.selectionStart;draw();$('#lq').focus();$('#lq').setSelectionRange(p,p)};
     $$('[data-lf]').forEach(b=>b.onclick=()=>{lk.f=b.dataset.lf;draw()});
+    $('#pub')&&($('#pub').onclick=e=>publishAll(P,true,e.target));$('#pubnew')&&($('#pubnew').onclick=e=>publishAll(P,false,e.target));
     const host=$('.lpk');if(host)picker(host,i=>link(i));
     $('#ll').onclick=async e=>{const c=e.target.closest('[data-lv]');if(!c)return;if(e.target.closest('[data-op]')){lk.open=c.dataset.lv;draw()}
       const pk=e.target.closest('[data-pick]');if(pk)link(byId.get(+pk.dataset.pick));if(e.target.closest('[data-unl]'))link(null)}};
@@ -411,6 +416,30 @@ PANES.link=async()=>{
     const r=await sb.rpc('inv_link',{pid,vi:+vi,sku:i?(i.barcode||i.code):''});if(r.error)return toast(emsg(r.error));
     x.v=r.data;x.item=i;lk.open=null;toast(i?'تم الربط – كمية الموقع صارت '+fq(Math.max(0,Math.floor(i.qty))):'تم فك الربط');draw()};
   draw()};
+
+/* ---------- publish Trust items to the shop ---------- */
+const inShop=P=>{const ids=new Set(P.map(p=>p.id));const skus=new Set(P.flatMap(p=>(p.data.vars||[]).map(v=>latin(v.sku||'').trim()).filter(Boolean)));return i=>ids.has('t'+i.code)||skus.has(latin(i.barcode||'').trim())||skus.has(latin(i.code).trim())};
+function productFor(i,sort){const C=SNCatalog.classify(i.name);const unit=SNCatalog.unitOf(i.name);const price=+i.price||0;
+  return{id:'t'+i.code,sort,data:{id:'t'+i.code,name:i.name.replace(/\s+/g,' ').trim(),name_en:'',cat:C.cat,cat_en:SNCatalog.CAT_EN[C.cat]||'',sub:C.sub,sub_en:SNCatalog.SUB_EN[C.sub]||'',tags:[],kind:C.kind,unit,desc:'',desc_en:'',ask:!(price>0),visible:!C.hide,src:'trust',
+    vars:[{label:unit,price,stock:Math.max(0,Math.floor(i.qty)),sku:latin(i.barcode||i.code).trim()}]}}}
+function catsFor(list,P,oldCats){const cover=c=>{const o=(oldCats||[]).find(x=>x.name===c);if(o&&o.img)return o.img;const p=P.find(p=>p.data.cat===c&&(p.data.img||(p.data.vars||[]).some(v=>v.img)));return p?(p.data.img||p.data.vars.find(v=>v.img).img):''};
+  return SNCatalog.ORDER.filter(c=>list.some(x=>x.data.cat===c)).map(c=>({name:c,name_en:SNCatalog.CAT_EN[c]||'',img:cover(c),subs:[...new Set(list.filter(x=>x.data.cat===c).map(x=>x.data.sub))].map(sn=>({name:sn,name_en:SNCatalog.SUB_EN[sn]||''}))}))}
+function publishCard(P){const has=inShop(P);const todo=items.filter(i=>!has(i));const fromTrust=P.filter(p=>/^t/.test(p.id)).length;const other=P.length-fromTrust;
+  const cl=todo.map(i=>SNCatalog.classify(i.name));const hid=cl.filter(c=>c.hide).length;
+  return `<div class="card" style="border:2px solid var(--gold)"><h2 style="margin-top:0">أصناف ترست على المتجر</h2>
+  <div class="kpis"><div class="kpi"><b>${fromTrust.toLocaleString('en')}</b><span>صنف ترست على المتجر</span></div><div class="kpi ${todo.length?'warn':''}"><b>${todo.length.toLocaleString('en')}</b><span>صنف مش على المتجر بعد</span></div>${other?`<div class="kpi"><b>${other}</b><span>منتج قديم (مش من ترست)</span></div>`:''}</div>
+  ${fromTrust===0?`<p class="note" style="margin-top:0">رح يتحول كل صنف بترست لمنتج بالمتجر: بالاسم والسعر من ترست، والكمية من نظام المخزون (الأصناف اللي كميتها صفر بتظهر «نفدت الكمية»)، وبينصنّف تلقائياً حسب اسمه على أقسام المتجر. <b>${hid}</b> صنف رح ينضاف <b>مخفي</b>: أجور الطباعة والكلاشيهات، والمطبوعات الخاصة بزبائن معينين، والأسماء الناقصة مثل «علبة». بتقدري تظهريهم من لوحة المتجر.</p>
+   ${other?`<div class="warnbox">المنتجات القديمة (${other}) رح تنشال من المتجر وتنحفظ نسخة منها بقاعدة البيانات (products_backup). صور الأقسام القديمة بتضل.</div>`:''}
+   <button class="btn gold" id="pub" style="width:100%">نشر ${items.length.toLocaleString('en')} صنف على المتجر${other?' واستبدال المنتجات القديمة':''}</button>`
+  :todo.length?`<p class="note" style="margin-top:0">أصناف جديدة من ترست مش على المتجر. بتنضاف لحالها بعد كل استيراد يومي، أو أضيفيها هلأ.</p><button class="btn gold" id="pubnew">إضافة ${todo.length} صنف للمتجر</button>`:'<p class="okbox" style="margin:0">كل أصناف ترست موجودة على المتجر ✓</p>'}</div>`}
+async function publishAll(P,replace,btn,quiet){const has=inShop(P);let todo=items.filter(i=>!has(i));if(replace&&btn&&btn.dataset.sure!=='1'){btn.dataset.sure='1';btn.textContent='متأكدة؟ اضغطي مرة ثانية للنشر';btn.classList.add('bad');return}
+  if(!todo.length)return;const all=[...todo].sort((a,b)=>{const A=SNCatalog.classify(a.name),Bc=SNCatalog.classify(b.name);return SNCatalog.ORDER.indexOf(A.cat)-SNCatalog.ORDER.indexOf(Bc.cat)||A.sub.localeCompare(Bc.sub,'ar')||a.name.localeCompare(b.name,'ar')});
+  const base=P.length?Math.max(...P.map(p=>+p.sort||0))+1:0;const rows=all.map((i,k)=>productFor(i,(replace?0:base)+k));
+  const st=await sb.from('settings').select('data').eq('id',1).maybeSingle();const oldCats=st.data&&st.data.data.categories;
+  const keep=replace?[]:P.filter(p=>/^t/.test(p.id));const cats=catsFor([...keep,...rows],P,oldCats);
+  let done=0;for(let k=0;k<rows.length;k+=500){if(btn)btn.textContent='جاري النشر… '+Math.round(100*k/rows.length)+'%';
+    const r=await sb.rpc('inv_publish',{rows:rows.slice(k,k+500),replace:replace&&k===0,cats:k+500>=rows.length?cats:null});if(r.error){if(btn){btn.disabled=false;btn.textContent='حاولي مرة ثانية'}toast(emsg(r.error),4000);return false}done+=r.data.added}
+  if(!quiet){toast('تم نشر '+done.toLocaleString('en')+' صنف على المتجر ✓',3500);PANES.link()}return done}
 
 /* ---------- reports ---------- */
 let rp={p:'7',from:'',to:''};

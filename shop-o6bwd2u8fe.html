@@ -222,26 +222,26 @@ const keepCart=()=>{try{localStorage.setItem('sn-cart',JSON.stringify(cart))}cat
 const fail=(m,e)=>{console.error(e);toast(m)};
 async function loadShop(){
   if(!sb){$('#app').innerHTML='<div class="empty">الموقع غير مربوط بقاعدة البيانات بعد (config.js).</div>';return false}
-  const [s,p]=await Promise.all([sb.from('settings').select('data').eq('id',1).maybeSingle(),sb.from('products').select('data,sort').order('sort')]);
+  const [s,p]=await Promise.all([sb.from('settings').select('data').eq('id',1).maybeSingle(),allProducts()]);
   if(s.error||p.error){$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاولي مرة ثانية.</div>';console.error(s.error||p.error);return false}
   if(s.data)db.settings=s.data.data;db.products=p.data.map(r=>r.data);
   cart=cart.filter(c=>{const x=db.products.find(p=>p.id===c.pid);if(!x||x.ask||!x.visible)return false;
     if(c.label!=null&&(!x.vars[c.vi]||x.vars[c.vi].label!==c.label)){const k=x.vars.findIndex(v=>v.label===c.label);if(k<0)return false;c.vi=k;c.k=x.id+'|'+k}
     const v=x.vars[c.vi];if(!v)return false;if(c.label==null)c.label=v.label;c.q=Math.min(c.q,maxQ(v));return c.q>0});keepCart();return true}
+async function allProducts(){const out=[];for(let from=0;;from+=1000){const r=await sb.from('products').select('data,sort').order('sort').order('id').range(from,from+999);if(r.error)return{error:r.error};out.push(...r.data);if(r.data.length<1000)break}return{data:out}}
 const rowToOrder=r=>({id:r.code,dbid:r.id,date:r.created_at,status:r.status,...r.customer,items:r.items,sub:+r.sub,fee:+r.fee,total:+r.total});
 const BASE=new Map();const snap=ps=>ps.forEach(p=>BASE.set(p.id,new Map(p.vars.map(v=>[v.label,v.stock??null]))));
-async function reloadAllProducts(){const p=await sb.from('products').select('data,sort').order('sort');if(!p.error){db.products.splice(0,db.products.length,...p.data.map(r=>r.data));BASE.clear();snap(db.products)}}
+async function reloadAllProducts(){const p=await allProducts();if(!p.error){db.products.splice(0,db.products.length,...p.data.map(r=>r.data));BASE.clear();snap(db.products)}}
 /* Save products without undoing stock that changed on the server (online orders) since the panel loaded:
    a quantity the admin did not touch is taken fresh from the server. */
 async function persist(list){if(!list.length)return true;
-  const fr=await sb.from('products').select('data,sort').order('sort');if(fr.error){fail('ما انحفظ – تأكدي من الاتصال',fr.error);return false}
-  const fresh=new Map(fr.data.map(r=>[r.data.id,r.data]));
+  const ids=list.map(p=>p.id),got=[];for(let k=0;k<ids.length;k+=150){const fr=await sb.from('products').select('data').in('id',ids.slice(k,k+150));if(fr.error){fail('ما انحفظ – تأكدي من الاتصال',fr.error);return false}got.push(...fr.data)}
+  const fresh=new Map(got.map(r=>[r.data.id,r.data]));
   list.forEach(p=>{const f=fresh.get(p.id),base=BASE.get(p.id);if(!f||!base)return;p.vars.forEach(v=>{if(!base.has(v.label))return;const b=base.get(v.label),fv=f.vars.find(x=>x.label===v.label);if(!fv)return;
     if((v.stock??null)===b&&(fv.stock??null)!==b)v.stock=fv.stock??null})});
   const r=await sb.from('products').upsert(list.map(p=>({id:p.id,sort:Math.max(0,db.products.indexOf(p)),data:p,updated_at:new Date().toISOString()})));
   if(r.error){fail('ما انحفظ – تأكدي من الاتصال',r.error);return false}
-  const mine=new Map(list.map(p=>[p.id,p]));const merged=fr.data.map(r=>mine.get(r.data.id)||r.data);list.forEach(p=>{if(!fresh.has(p.id))merged.unshift(p)});
-  db.products.splice(0,db.products.length,...merged);snap(db.products);return true}
+  list.forEach(p=>{const i=db.products.findIndex(x=>x.id===p.id);if(i<0)db.products.unshift(p);else db.products[i]=p});snap(list);return true}
 async function loadOrders(){const r=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(500);if(r.error){fail('تعذّر تحميل الطلبات',r.error);return}db.orders=r.data.map(rowToOrder)}
 async function saveProduct(p){return persist([p])}
 async function saveSettings(){const r=await sb.from('settings').upsert({id:1,data:db.settings,updated_at:new Date().toISOString()});if(r.error){fail('ما انحفظت الإعدادات',r.error);return false}return true}
@@ -310,13 +310,15 @@ const CAT_EN=()=>{const m={...EN_CAT};db.products.forEach(p=>{if(p.cat_en)m[p.ca
 const pc=c=>en()?(CAT_EN()[c]||c):c;
 const zn=z=>en()?(z.name_en||z.name):z.name;
 function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=en()?'ltr':'rtl';$('#langBtn').textContent=en()?'العربية':'English';$('#q').placeholder=t('search');$('#cartLbl').textContent=t('cart');$('#cartTitle').textContent=t('cartT');$('#footAddr').textContent=t('foot');setName()}
-let sub=null,tag=null;
+let sub=null,tag=null,shown=48;const SKEY=new WeakMap();
+const skey=p=>{let k=SKEY.get(p);if(!k){k=norm([p.name,p.desc,p.cat,p.sub,p.name_en,p.desc_en,p.cat_en,p.sub_en,...p.vars.map(v=>v.label)].filter(Boolean).join(' '));SKEY.set(p,k)}return k};
 function renderShop(){
   $('#searchBox').style.display='';
   const vis=db.products.filter(p=>p.visible);
   const order=[...catList().map(c=>c.name),...new Set(vis.map(p=>p.cat))].filter((c,i,a)=>a.indexOf(c)===i&&vis.some(p=>p.cat===c));
   const q=norm($('#q').value.trim());
-  const list=vis.filter(p=>(cat==='الكل'||p.cat===cat)&&(!sub||p.sub===sub)&&(!tag||(p.tags||[]).includes(tag))&&(!q||norm([p.name,p.desc,p.cat,p.sub,p.name_en,p.desc_en,p.cat_en,p.sub_en,...p.vars.map(v=>v.label)].filter(Boolean).join(' ')).includes(q)));
+  const list=vis.filter(p=>(cat==='الكل'||p.cat===cat)&&(!sub||p.sub===sub)&&(!tag||(p.tags||[]).includes(tag))&&(!q||q.split(' ').every(w=>skey(p).includes(w))));
+  const avail=p=>p.ask||p.vars.some(inStock);list.sort((a,b)=>avail(b)-avail(a));const more=list.length>shown;
   const ci=catList().find(x=>x.name===cat);const subs=cat==='الكل'?[]:[...new Set([...((ci&&ci.subs)||[]).map(x=>x.name),...vis.filter(p=>p.cat===cat).map(p=>p.sub)])].filter(x=>x&&vis.some(p=>p.cat===cat&&p.sub===x));
   const tags=[...new Set(vis.flatMap(p=>p.tags||[]))];
   const home=cat==='الكل'&&!q&&!tag;
@@ -336,7 +338,8 @@ function renderShop(){
   <div class="chips" id="shop">${['الكل',...order].map(c=>`<button class="chip ${c===cat&&!tag?'on':''}" data-cat="${esc(c)}">${esc(c==='الكل'?t('all'):pc(c))}</button>`).join('')}</div>
   ${subs.length>1?`<div class="subs">${[null,...subs].map(x=>`<button class="ochip ${x===sub?'on':''}" data-sub="${x?esc(x):''}">${x?esc(pc(x)):(en()?'All in '+pc(cat):'كل '+esc(cat))}</button>`).join('')}</div>`:''}
   <div class="shophead"><h2>${esc(title)}</h2><span class="count">${list.length} ${en()?'products':'منتج'}</span></div>
-  ${list.length?`<div class="grid">${list.map(p=>`<button class="card" data-p="${p.id}"><div class="thumb">${pic(p)}</div><div class="b"><span class="cat">${esc(pc(p.sub||p.cat))}</span><h3>${esc(pn(p))}</h3>${p.vars.some(inStock)?'':`<span class="oos">${t('oos')}</span>`}<span class="price">${priceOf(p)}</span></div></button>`).join('')}</div>`:`<div class="empty">${t('noMatch')}</div>`}`;
+  ${list.length?`<div class="grid">${list.slice(0,shown).map(p=>`<button class="card" data-p="${p.id}"><div class="thumb">${pic(p)}</div><div class="b"><span class="cat">${esc(pc(p.sub||p.cat))}</span><h3>${esc(pn(p))}</h3>${p.vars.some(inStock)?'':`<span class="oos">${t('oos')}</span>`}<span class="price">${priceOf(p)}</span></div></button>`).join('')}</div>${more?`<div style="text-align:center;margin-top:18px"><button class="btn alt" id="more">${en()?'Show more':'عرض المزيد'} (${list.length-shown})</button></div>`:''}`:`<div class="empty">${t('noMatch')}</div>`}`;
+  $('#more')&&($('#more').onclick=()=>{shown+=96;const y=scrollY;renderShop();scrollTo(0,y)});
   $('#goShop').onclick=()=>$('#shop').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
 }
 function openProduct(id){
@@ -459,7 +462,7 @@ function paneProducts(){
    <div class="toolbar"><input id="pq" type="text" placeholder="ابحث في المنتجات" value="${esc(pf.q)}" style="max-width:300px"><button class="btn gold" id="newP">+ منتج جديد</button></div>
    <div class="occ" style="margin-bottom:10px">${Object.entries(FL).map(([k,[n,f]])=>`<button class="ochip ${pf.flt===k?'on':''}" data-pfl="${k}">${n} <b>${P.filter(f).length}</b></button>`).join('')}</div>
    <div id="bulk"></div><div id="plist"></div></div></div>`;
-  const draw=()=>{const list=P.filter(match);
+  const draw=()=>{const all=P.filter(match);const list=all.slice(0,300);
     const groups=[];const key=p=>pf.cat&&pf.cat!=='__none'?(p.sub||'بدون قسم فرعي'):p.cat;
     const order=pf.cat&&pf.cat!=='__none'?[...((cats.find(c=>c.name===pf.cat)||{}).subs||[]).map(x=>x.name),'بدون قسم فرعي']:[...cats.map(c=>c.name)];
     list.forEach(p=>{const k=key(p)||'بدون قسم';let g=groups.find(g=>g.k===k);if(!g)groups.push(g={k,items:[]});g.items.push(p)});
@@ -470,7 +473,7 @@ function paneProducts(){
      <td><input type="checkbox" data-vis="${p.id}" ${p.visible?'checked':''} aria-label="ظاهر" style="width:22px;height:22px"></td>
      <td class="n"><button class="btn alt" data-ed="${p.id}" style="min-height:40px;padding:6px 12px">تعديل</button></td></tr>`};
     $('#plist').innerHTML=list.length?groups.map(g=>`<div class="pgroup"><div class="pgh"><label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" data-pall="${esc(g.k)}" ${g.items.every(p=>psel.has(p.id))?'checked':''} style="width:20px;height:20px"><b>${esc(g.k)}</b></label><span class="note">${g.items.length} منتج</span></div>
-      <table class="stack"><thead><tr><th></th><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر</th><th></th></tr></thead><tbody>${g.items.map(row).join('')}</tbody></table></div>`).join(''):'<div class="empty">ما في منتجات بهالاختيار.</div>';
+      <table class="stack"><thead><tr><th></th><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر</th><th></th></tr></thead><tbody>${g.items.map(row).join('')}</tbody></table></div>`).join('')+(all.length>300?`<p class="note">يظهر أول 300 من ${all.length} – اختاري قسم من القائمة أو ابحثي.</p>`:''):'<div class="empty">ما في منتجات بهالاختيار.</div>';
     const sel=[...psel].filter(id=>P.some(p=>p.id===id));
     $('#bulk').innerHTML=sel.length?`<div class="bulkbar"><b>${sel.length} محدد</b>
       <select id="bmc" aria-label="القسم">${cats.map(c=>`<option>${esc(c.name)}</option>`).join('')}</select><select id="bms" aria-label="القسم الفرعي"></select><button class="btn gold" id="bmove">نقل</button>
@@ -724,9 +727,9 @@ const setName=()=>{$('#storeName').textContent=en()?(db.settings.store_en||'Said
 function route(){close();const a=location.hash==='#admin';setAppMode(a);document.documentElement.dir=a||!en()?'rtl':'ltr';$('#langBtnW').style.display=a?'none':'';$('#adminBtn').textContent=a?t('store'):t('panel');$('#cartBtn').style.display=a?'none':'';$('#adminBtnW').style.display=a||authed?'':'none';a?renderAdmin():renderShop()}
 document.addEventListener('click',e=>{const t=e.target.closest('button,[data-close]');if(!t)return;const d=t.dataset;
   if('close' in d)close();
-  else if(d.cat){cat=d.cat;sub=null;tag=null;renderShop();if(t.classList.contains('tile'))$('#shop').scrollIntoView()}
-  else if('sub' in d){sub=d.sub||null;renderShop()}
-  else if(d.tag){tag=tag===d.tag?null:d.tag;cat='الكل';sub=null;renderShop();$('#shop').scrollIntoView()}
+  else if(d.cat){cat=d.cat;sub=null;tag=null;shown=48;renderShop();if(t.classList.contains('tile'))$('#shop').scrollIntoView()}
+  else if('sub' in d){sub=d.sub||null;shown=48;renderShop()}
+  else if(d.tag){tag=tag===d.tag?null:d.tag;cat='الكل';sub=null;shown=48;renderShop();$('#shop').scrollIntoView()}
   else if(d.p)openProduct(d.p);
   else if(d.cq){const c=cart[+d.cq];const p=db.products.find(x=>x.id===c.pid);const mx=p?maxQ(p.vars[c.vi]):Infinity;if(+d.d>0&&c.q>=mx){toast(UI.maxIn[en()?1:0]+' '+mx);return}c.q+= +d.d;if(c.q<1)cart.splice(+d.cq,1);keepCart();updCount();renderCart()}
   else if(d.rm){cart.splice(+d.rm,1);keepCart();updCount();renderCart()}
@@ -745,7 +748,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 $('#cartBtn').addEventListener('click',()=>{renderCart();show('#cart')});
 $('#langBtnW').addEventListener('click',()=>{lang=en()?'ar':'en';try{localStorage.setItem('sn-lang',lang)}catch(e){};applyLang();route()});
 $('#adminBtnW').addEventListener('click',()=>{location.hash=location.hash==='#admin'?'':'admin'});
-$('#q').addEventListener('input',renderShop);
+$('#q').addEventListener('input',()=>{shown=48;renderShop()});
 window.addEventListener('hashchange',route);
 let deferredInstall=null;
 const standalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
