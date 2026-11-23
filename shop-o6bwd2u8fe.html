@@ -42,6 +42,7 @@ header{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:sat
 .hbtn:hover{background:var(--bg)}
 #cartBtn{background:var(--navy);color:#fff}
 #cartBtn:hover{background:#24397A}
+.tag{display:inline-block;background:#EEF0F5;color:var(--ink);border-radius:99px;padding:1px 9px;font-size:12.5px;margin:1px}
 .linkish{background:none;border:0;padding:0;color:var(--navy);text-decoration:underline;font:inherit;cursor:pointer;text-align:start}
 .badge{background:var(--gold);color:#fff;border-radius:99px;min-width:22px;padding:0 6px;font-size:13px;font-weight:700;text-align:center}
 .wrap{max-width:1280px;margin:auto;padding:22px max(4vw,14px) 64px}
@@ -415,19 +416,28 @@ async function placeOrder(items,sub,fee,zone){
 }
 
 /* ---------- ADMIN ---------- */
+/* ---------- who may do what ---------- */
+const PERMS={orders:['الطلبات','عرض الطلبات وتغيير حالتها'],products:['المنتجات','المنتجات والأقسام وواجهة المتجر والصور'],stock:['المخزون (المتجر)','تبويب المخزون والرموز في لوحة المتجر'],history:['السجل','سجل تغييرات المنتجات'],commission:['العمولة','تقرير العمولة الشهري (قراءة فقط)'],settings:['الإعدادات','مناطق التوصيل والواتساب والعملة']};
+let acc={owner:false,perms:[]};
+const can=k=>acc.owner||acc.perms.includes(k);
+async function access(uid){const a=await sb.from('admins').select('user_id').eq('user_id',uid).maybeSingle();if(a.data)return{owner:true,perms:Object.keys(PERMS)};
+  const p=await sb.from('panel_users').select('perms,active,name').eq('user_id',uid).maybeSingle();if(p.data&&p.data.active&&p.data.perms&&p.data.perms.length)return{owner:false,perms:p.data.perms,name:p.data.name};return null}
+const TAB_PERM={orders:'orders',products:'products',stock:'stock',cats:'products',front:'products',history:'history',commission:'commission',settings:'settings',users:'owner',account:''};
+const tabOk=k=>TAB_PERM[k]===''||(TAB_PERM[k]==='owner'?acc.owner:can(TAB_PERM[k]));
 function renderAdmin(){
   $('#searchBox').style.display='none';
   if(!authed){$('#app').innerHTML=`<div style="max-width:400px;margin:40px auto" class="kpi"><h2 style="margin-top:0">دخول لوحة التحكم</h2>
   <form id="lg"><label for="em">البريد الإلكتروني</label><input id="em" type="text" inputmode="email" autocomplete="username" dir="ltr" required><label for="pw">كلمة السر</label><input id="pw" type="password" autocomplete="current-password" required><p class="oos" id="lgErr"></p><button class="btn" style="width:100%">دخول</button></form></div>`;
   $('#lg').addEventListener('submit',async e=>{e.preventDefault();$('#lgErr').textContent='';const r=await sb.auth.signInWithPassword({email:$('#em').value.trim(),password:$('#pw').value});
     if(r.error){$('#lgErr').textContent='البريد أو كلمة السر غير صحيحة';return}
-    const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
-    if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
-    authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',commission:'العمولة',settings:'الإعدادات',account:'حسابي'};
+    const a=await access(r.data.user.id);
+    if(!a){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
+    acc=a;authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
+  const T=Object.fromEntries(Object.entries({orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',commission:'العمولة',settings:'الإعدادات',users:'المستخدمين',account:'حسابي'}).filter(([k])=>tabOk(k)));
+  if(!T[adminTab])adminTab=Object.keys(T)[0];
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,commission:paneCommission,settings:paneSettings,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,commission:paneCommission,settings:paneSettings,users:paneUsers,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -732,6 +742,47 @@ async function paneCommission(){const s=db.settings;const mkP=+(s.markup??0),cP=
   $('#cmx').onclick=async()=>{await loadXLSX();const rows=O.map(o=>{const c=calc(o);return{'الطلب':o.id,'التاريخ':new Date(o.date).toLocaleDateString('en-GB'),'الحالة':(STATUS[o.status]||[o.status])[0],'محسوب':o.status==='done'?'نعم':'لا','المبيعات (د.أ)':r3(c.items),'فرق الزيادة':r3(c.diff),'العمولة':r3(c.com),'المستحق':r3(c.diff+c.com)}});
     rows.push({'الطلب':'المجموع (المسلَّم)','المبيعات (د.أ)':r3(D.items),'فرق الزيادة':r3(D.diff),'العمولة':r3(D.com),'المستحق':r3(D.diff+D.com)});
     const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'العمولة '+cm.m);XLSX.writeFile(wb,'sn-commission-'+cm.m+'.xlsx')}}
+/* ---------- users and permissions (owners) ---------- */
+const UERR={not_configured:'إدارة المستخدمين غير مفعّلة بعد – لازم تضيفي مفتاح Supabase السري في إعدادات Vercel (التفاصيل بالأسفل).',owner_only:'هذه الصفحة للمالك فقط',email_exists:'في حساب بهالإيميل من قبل',bad_email:'الإيميل غير صحيح',weak_password:'كلمة السر لازم تكون 8 أحرف على الأقل',cannot_change_self:'ما بتقدري توقفي أو تحذفي حسابك أو تشيلي صلاحية المالك عنه',last_owner:'لازم يضل مالك واحد على الأقل'};
+async function teamApi(body){const {data}=await sb.auth.getSession();if(!data.session)throw new Error('owner_only');
+  const r=await fetch('/api/team',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+data.session.access_token,'x-anon-key':CFG.anonKey},body:JSON.stringify(body)});
+  let j={};try{j=await r.json()}catch(e){j={error:r.status===404?'not_configured':'HTTP '+r.status}}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
+const uerr=e=>UERR[e.message]||('صار خطأ: '+e.message);
+const genPw=()=>{const a='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';let p='';const r=crypto.getRandomValues(new Uint32Array(10));r.forEach(x=>p+=a[x%a.length]);return p+'#'+(r[0]%90+10)};
+let USERS=[];const showModal=h=>{$('#modal').innerHTML=h;show('#modal')},closeModal=()=>close();
+async function paneUsers(){$('#pane').innerHTML='<div class="empty">جاري التحميل…</div>';
+  try{USERS=(await teamApi({action:'list'})).users}catch(e){$('#pane').innerHTML=`<div class="demo">${esc(uerr(e))}</div>${e.message==='not_configured'?`<div class="kpi"><b style="font-size:16px">التفعيل (مرة وحدة):</b><ol><li>في Supabase: <b>Project Settings ← API Keys</b>، انسخي <b>Secret key</b> (يبدأ بـ sb_secret_).</li><li>في Vercel: مشروع <b>saidnazzalest-shop ← Settings ← Environment Variables</b>، أضيفي متغير اسمه <b>SUPABASE_SECRET_KEY</b> وقيمته المفتاح، ثم <b>Redeploy</b>.</li><li>ما تشاركي هذا المفتاح مع حدا ولا تحطيه بأي ملف.</li></ol></div>`:''}`;return}
+  const role=u=>u.owner?'<span class="badge" style="position:static">مالك – كل الصلاحيات</span>':u.perms.length?u.perms.map(p=>`<span class="tag">${PERMS[p]?PERMS[p][0]:esc(p)}</span>`).join(' '):'<span class="note">بدون صلاحيات</span>';
+  const SR={none:'—',staff:'موظف',owner:'صاحب الحساب'};
+  $('#pane').innerHTML=`<div class="toolbar"><button class="btn" id="uadd">+ إضافة مستخدم</button></div>
+  <div class="demo">كل مستخدم بيدخل بإيميله وكلمة سره، وبيشوف بس الأقسام المسموحة إله. الصلاحيات محمية بقاعدة البيانات نفسها.</div>
+  <table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحيات</th><th>نظام المخزون</th><th>الحالة</th><th>آخر دخول</th><th></th></tr></thead><tbody>
+  ${USERS.map(u=>`<tr style="${u.active?'':'opacity:.5'}"><td>${esc(u.name||'—')}${u.me?' <span class="note">(أنت)</span>':''}</td><td dir="ltr" style="text-align:end">${esc(u.email)}</td><td>${role(u)}</td><td>${SR[u.stock]||'—'}</td><td>${u.active?'فعّال':'موقوف'}</td><td class="note">${u.last?new Date(u.last).toLocaleDateString('ar-JO'):'—'}</td><td><button class="btn alt" data-uedit="${u.id}" style="min-height:36px;padding:4px 12px">تعديل</button></td></tr>`).join('')}</tbody></table>`;
+  $('#uadd').onclick=()=>userForm(null);
+  $('#pane').querySelectorAll('[data-uedit]').forEach(b=>b.onclick=()=>userForm(USERS.find(u=>u.id===b.dataset.uedit)))}
+function userForm(u){const n=!u;const pw=n?genPw():'';
+  showModal(`<div class="dh"><h2>${n?'مستخدم جديد':'تعديل '+esc(u.name||u.email)}</h2><button class="x" data-close aria-label="إغلاق">×</button></div><form id="uf" style="padding:6px 22px 22px">
+  <label for="un">الاسم</label><input id="un" type="text" value="${esc(u?u.name:'')}" required>
+  <label for="ue">الإيميل (للدخول)</label><input id="ue" type="email" dir="ltr" value="${esc(u?u.email:'')}" ${n?'required':'disabled'}>
+  ${n?`<label for="up">كلمة سر مؤقتة (أعطيها للمستخدم، وبيغيّرها من «حسابي»)</label><div class="row"><input id="up" type="text" dir="ltr" value="${pw}" minlength="8" required style="flex:1"><button type="button" class="btn alt" id="upg">توليد</button></div>`:''}
+  <label class="row" style="margin-top:14px;color:var(--ink)"><input type="checkbox" id="uo" ${u&&u.owner?'checked':''} ${u&&u.me?'disabled':''} style="width:20px;height:20px"> <b>مالك</b> – كل الصلاحيات، ومنها المستخدمين ونسبة الزيادة والعمولة</label>
+  <fieldset id="ups" style="border:1px solid var(--line);border-radius:12px;margin-top:10px"><legend class="note">الصلاحيات</legend>${Object.entries(PERMS).map(([k,[t,d]])=>`<label class="row" style="margin:6px 0;color:var(--ink)"><input type="checkbox" data-perm="${k}" ${u&&(u.owner||u.perms.includes(k))?'checked':''} style="width:20px;height:20px"> <b>${t}</b> <span class="note">– ${d}</span></label>`).join('')}</fieldset>
+  <label for="us">نظام المخزون</label><select id="us"><option value="none">بدون دخول</option><option value="staff">موظف (بيع، استلام، جرد)</option><option value="owner">صاحب الحساب (كل شي)</option></select>
+  ${n?'':`<label class="row" style="margin-top:14px;color:var(--ink)"><input type="checkbox" id="ua" ${u.active?'checked':''} ${u.me?'disabled':''} style="width:20px;height:20px"> الحساب فعّال (لو شلتي العلامة ما بيقدر يدخل)</label>
+  <details style="margin-top:12px"><summary class="note" style="cursor:pointer">تغيير كلمة السر</summary><div class="row" style="margin-top:8px"><input id="unp" type="text" dir="ltr" placeholder="كلمة سر جديدة (8 أحرف أو أكثر)" style="flex:1"><button type="button" class="btn alt" id="unpg">توليد</button><button type="button" class="btn" id="unps">حفظ كلمة السر</button></div></details>`}
+  <p class="oos" id="uerr"></p>
+  <div class="row" style="justify-content:space-between;margin-top:10px">${!n&&!u.me?'<button type="button" class="btn alt" id="udel" style="color:var(--bad)">حذف المستخدم</button>':'<span></span>'}<button class="btn">${n?'إنشاء الحساب':'حفظ'}</button></div></form>`);
+  $('#us').value=u?u.stock:'none';
+  const syncOwner=()=>{const o=$('#uo').checked;$('#ups').querySelectorAll('input').forEach(x=>{x.disabled=o;if(o)x.checked=true})};$('#uo').onchange=syncOwner;syncOwner();
+  $('#upg')&&($('#upg').onclick=()=>$('#up').value=genPw());$('#unpg')&&($('#unpg').onclick=()=>$('#unp').value=genPw());
+  const fail2=e=>{$('#uerr').textContent=uerr(e)};
+  $('#unps')&&($('#unps').onclick=async()=>{try{await teamApi({action:'password',id:u.id,password:$('#unp').value});toast('تم تغيير كلمة السر – أعطيها للمستخدم')}catch(e){fail2(e)}});
+  $('#udel')&&($('#udel').onclick=async e=>{const b=e.target;if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكدة؟ اضغطي مرة ثانية';return}try{await teamApi({action:'remove',id:u.id});closeModal();toast('تم حذف المستخدم');paneUsers()}catch(err){fail2(err)}});
+  $('#uf').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;
+    const body={name:$('#un').value.trim(),owner:$('#uo').checked,perms:[...$('#ups').querySelectorAll('[data-perm]:checked')].map(x=>x.dataset.perm),stock:$('#us').value};
+    if(!body.owner&&!body.perms.length&&body.stock==='none'){b.disabled=false;$('#uerr').textContent='اختاري صلاحية وحدة على الأقل';return}
+    try{if(n)await teamApi({action:'create',email:$('#ue').value.trim(),password:$('#up').value,...body});else await teamApi({action:'update',id:u.id,active:$('#ua').checked,...body});
+      closeModal();toast(n?'تم إنشاء الحساب – أعطي الإيميل وكلمة السر للمستخدم':'تم الحفظ');paneUsers()}catch(err){b.disabled=false;fail2(err)}}}
 async function paneAccount(){
   const {data}=await sb.auth.getUser();const email=data?.user?.email||'';
   $('#pane').innerHTML=`<form id="pwf" style="max-width:420px"><p class="note" style="margin-top:0">مسجّلة الدخول باسم <b dir="ltr">${esc(email)}</b></p>
@@ -757,11 +808,11 @@ function paneSettings(){
   <label for="sw">رقم واتساب لاستقبال الطلبات (بالصيغة الدولية)</label><input id="sw" type="text" dir="ltr" value="${esc(s.whatsapp)}">
   <label for="swm">إرسال الطلبات على واتساب</label><select id="swm"><option value="optional" ${s.waMode!=='auto'?'selected':''}>اختياري – زر للزبون بعد تأكيد الطلب</option><option value="auto" ${s.waMode==='auto'?'selected':''}>تلقائي – يفتح واتساب للزبون بالطلب جاهز</option></select>
   <label for="sur">سعر الدولار: 1 دينار = ؟ دولار (للزوار من خارج الأردن)</label><div class="row"><input id="sur" type="number" min="0.5" max="3" step="0.001" dir="ltr" value="${s.usdRate||1.41}" style="max-width:140px"><label class="row" style="margin:0"><input type="checkbox" id="sua" ${s.usdAuto!==false?'checked':''} style="width:20px;height:20px"> عرض الأسعار بالدولار تلقائياً لزوار خارج الأردن</label></div>
-  <div class="row"><div style="flex:1"><label for="smk">زيادة أسعار الموقع على سعر ترست (%)</label><input id="smk" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.markup??0}"></div><div style="flex:1"><label for="scm">العمولة على المبيعات أونلاين (%)</label><input id="scm" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.commission??0}"></div></div>
+  <div class="row"><div style="flex:1"><label for="smk">زيادة أسعار الموقع على سعر ترست (%)</label><input id="smk" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.markup??0}" ${acc.owner?'':'disabled title="للمالك فقط"'}></div><div style="flex:1"><label for="scm">العمولة على المبيعات أونلاين (%)</label><input id="scm" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.commission??0}" ${acc.owner?'':'disabled title="للمالك فقط"'}></div></div>
   <label for="sfo">توصيل مجاني للطلبات من (دينار) — 0 لإلغائه</label><input id="sfo" type="number" min="0" step="0.5" dir="ltr" value="${s.freeOver||0}"><label>مناطق التوصيل (أمثلة – عدّليها حسب أسعاركم): الاسم عربي | إنجليزي | الأجرة | خارج الأردن</label><p class="note" style="margin:0 0 6px">للمناطق خارج الأردن: الأجرة تُحدَّد مع الزبون بعد الطلب، والزبون يدخل الدولة والمدينة.</p>${s.zones.map((z,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,.8fr) auto 44px;align-items:center"><input type="text" data-zn="${i}" value="${esc(z.name)}" aria-label="المنطقة"><input type="text" dir="ltr" data-zne="${i}" value="${esc(z.name_en||'')}" aria-label="English"><input type="number" step="0.25" min="0" data-zf="${i}" value="${z.fee}" dir="ltr" aria-label="الأجرة" ${z.intl?'disabled':''}><label class="row" style="margin:0;color:var(--ink);font-size:13px;white-space:nowrap"><input type="checkbox" data-zi="${i}" ${z.intl?'checked':''} style="width:20px;height:20px"> خارج الأردن</label><button type="button" data-zx="${i}" aria-label="حذف">×</button></div>`).join('')}
   <button type="button" class="btn alt" id="addz">+ منطقة</button>
   <div class="row" style="justify-content:space-between;margin-top:20px"><span></span><button class="btn">حفظ الإعدادات</button></div></form>`;
-  const sync=()=>{s.store=$('#sn').value;s.store_en=$('#sne').value;s.whatsapp=$('#sw').value.replace(/\D/g,'');s.freeOver=+$('#sfo').value||0;s.waMode=$('#swm').value;s.usdRate=+$('#sur').value||1.41;s.markup=Math.max(0,+$('#smk').value||0);s.commission=Math.max(0,+$('#scm').value||0);s.usdAuto=$('#sua').checked;s.zones=s.zones.map((z,i)=>({name:$(`[data-zn="${i}"]`).value,name_en:$(`[data-zne="${i}"]`).value,fee:+$(`[data-zf="${i}"]`).value||0,intl:$(`[data-zi="${i}"]`).checked}))};
+  const sync=()=>{s.store=$('#sn').value;s.store_en=$('#sne').value;s.whatsapp=$('#sw').value.replace(/\D/g,'');s.freeOver=+$('#sfo').value||0;s.waMode=$('#swm').value;s.usdRate=+$('#sur').value||1.41;if(acc.owner){s.markup=Math.max(0,+$('#smk').value||0);s.commission=Math.max(0,+$('#scm').value||0)}s.usdAuto=$('#sua').checked;s.zones=s.zones.map((z,i)=>({name:$(`[data-zn="${i}"]`).value,name_en:$(`[data-zne="${i}"]`).value,fee:+$(`[data-zf="${i}"]`).value||0,intl:$(`[data-zi="${i}"]`).checked}))};
   $('#addz').onclick=()=>{sync();s.zones.push({name:'',fee:0});draw()};
   document.querySelectorAll('[data-zx]').forEach(b=>b.onclick=()=>{sync();s.zones.splice(+b.dataset.zx,1);draw()});
     $('#sf').onsubmit=async e=>{e.preventDefault();const mk0=s.markup;sync();
@@ -826,7 +877,7 @@ async function geoCountry(){let c=null;try{c=sessionStorage.getItem('sn-geo')}ca
   try{sessionStorage.setItem('sn-geo',c)}catch(e){}return c}
 Promise.all([loadShop(),geoCountry()]).then(([ok,c])=>{let saved=null;try{saved=localStorage.getItem('sn-cur')}catch(e){}
   geoOut=!!c&&c!=='JO';cur=saved||(geoOut&&db.settings.usdAuto!==false?'USD':'JOD');applyLang();updCount();if(ok)route()});
-if(sb)sb.auth.getSession().then(async({data})=>{if(!data.session)return;const ok=await sb.from('admins').select('user_id').eq('user_id',data.session.user.id).maybeSingle();if(ok.data){authed=true;$('#adminBtnW').style.display='';await Promise.all([loadOrders(),reloadAllProducts()]);if(location.hash==='#admin')renderAdmin()}});
+if(sb)sb.auth.getSession().then(async({data})=>{if(!data.session)return;const a=await access(data.session.user.id);if(a){acc=a;authed=true;$('#adminBtnW').style.display='';await Promise.all([loadOrders(),reloadAllProducts()]);if(location.hash==='#admin')renderAdmin()}});
 }
 </script>
 </body>
