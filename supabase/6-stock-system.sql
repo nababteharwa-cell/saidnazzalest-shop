@@ -82,16 +82,20 @@ create policy "inv_imports read" on public.inv_imports for select using (public.
 -- Any size on the website whose sku equals an item's barcode or code gets stock = that item's quantity.
 create or replace function public.web_stock_fix(d jsonb) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
-declare out jsonb := '[]'::jsonb; v jsonb; q numeric;
+declare out jsonb := '[]'::jsonb; v jsonb; q numeric; pr numeric;
 begin
   if d->'vars' is null or jsonb_typeof(d->'vars') <> 'array' then return d; end if;
   for v in select value from jsonb_array_elements(d->'vars') loop
-    q := null;
+    q := null; pr := null;
     if coalesce(v->>'sku','') <> '' then
-      select greatest(floor(i.qty), 0) into q from inv_items i
-       where i.barcode = trim(v->>'sku') or i.code = trim(v->>'sku') limit 1;
+      select greatest(floor(i.qty), 0), i.price into q, pr from inv_items i
+       where i.barcode = trim(v->>'sku') or i.code = trim(v->>'sku')
+       order by (i.barcode = trim(v->>'sku')) desc limit 1;   -- a barcode match wins over a Trust code
     end if;
-    if q is not null then v := jsonb_set(v, '{stock}', to_jsonb(q)); end if;
+    if q is not null then
+      v := jsonb_set(v, '{stock}', to_jsonb(q));
+      if pr is not null and pr > 0 then v := jsonb_set(v, '{price}', to_jsonb(pr)); end if;
+    end if;
     out := out || jsonb_build_array(v);
   end loop;
   return jsonb_set(d, '{vars}', out);
@@ -111,8 +115,7 @@ create or replace function public.inv_sync_web(it public.inv_items) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   update products set updated_at = now(), data = data
-   where exists (select 1 from jsonb_array_elements(data->'vars') v
-                  where trim(v->>'sku') in (it.barcode, it.code));
+   where exists (select 1 from jsonb_array_elements(data->'vars') v where trim(v->>'sku') in (it.barcode, it.code));
 end $$;
 
 -- ---------- the ledger ----------
@@ -359,7 +362,8 @@ end $$;
 -- ---------- online orders go through the stock system ----------
 create or replace function public.inv_item_for_sku(sku text) returns bigint
 language sql stable security definer set search_path = public as $$
-  select id from inv_items where coalesce(trim(sku),'') <> '' and (barcode = trim(sku) or code = trim(sku)) limit 1;
+  select id from inv_items where coalesce(trim(sku),'') <> '' and (barcode = trim(sku) or code = trim(sku))
+  order by (barcode = trim(sku)) desc limit 1;
 $$;
 
 create or replace function public.place_order(payload jsonb) returns jsonb
