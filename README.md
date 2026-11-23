@@ -9,3 +9,7 @@ Static shop page (`index.html`) backed by Supabase (database, admin login, photo
 - `supabase/` – database setup: run 1, 2, 3 in order in the Supabase SQL Editor
 
 Hosting: Vercel, framework preset "Other", no build step. Every push to `main` deploys.
+
+## Database updates
+Run these in Supabase → SQL Editor, in order, once each: `1-schema.sql`, `2-products.sql`, `3-make-admin.sql`, then `5-qa-fixes.sql`
+(5 contains everything in 4 plus spam protection; running 4 as well is harmless).
