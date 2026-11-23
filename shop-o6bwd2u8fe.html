@@ -424,10 +424,10 @@ function renderAdmin(){
     const ok=await sb.from('admins').select('user_id').eq('user_id',r.data.user.id).maybeSingle();
     if(!ok.data){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',settings:'الإعدادات',account:'حسابي'};
+  const T={orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',commission:'العمولة',settings:'الإعدادات',account:'حسابي'};
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,settings:paneSettings,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,commission:paneCommission,settings:paneSettings,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -710,6 +710,28 @@ async function paneHistory(){$('#pane').innerHTML='<div class="empty">جاري �
   draw();$('#hq').oninput=e=>{hf.q=e.target.value;draw()};$('#hw').onchange=e=>{hf.who=e.target.value;draw()};$('#ha').onchange=e=>{hf.act=e.target.value;draw()};
   $('#hl').onclick=async e=>{const b=e.target.closest('[data-restore]');if(!b)return;const h=HROWS.find(x=>x.id===+b.dataset.restore);const p=h&&h.changes[0]&&h.changes[0].old;if(!p)return;
     b.disabled=true;if(await persist([p])){toast('تم استرجاع المنتج');paneHistory()}else b.disabled=false}}
+/* ---------- monthly commission: online markup difference + % of online sales ---------- */
+let cm={m:new Date().toISOString().slice(0,7)};
+async function paneCommission(){const s=db.settings;const mkP=+(s.markup??0),cP=+(s.commission??0);
+  const [y,mo]=cm.m.split('-').map(Number);const from=new Date(y,mo-1,1),to=new Date(y,mo,1);
+  $('#pane').innerHTML='<div class="empty">جاري الحساب…</div>';
+  const out=[];for(let k=0;;k+=1000){const r=await sb.from('orders').select('*').gte('created_at',from.toISOString()).lt('created_at',to.toISOString()).order('created_at').range(k,k+999);if(r.error){$('#pane').innerHTML=`<div class="empty">${esc(r.error.message)}</div>`;return}out.push(...r.data);if(r.data.length<1000)break}
+  const O=out.map(rowToOrder).filter(o=>o.status!=='cancel');
+  const calc=o=>{const items=o.items.reduce((a,i)=>a+(+i.price)*(+i.q),0);const diff=o.items.reduce((a,i)=>a+(i.base!=null?(+i.price-(+i.base))*(+i.q):0),0);const nob=o.items.some(i=>i.base==null);return{items,diff,com:items*cP/100,nob}};
+  const r3=n=>Math.round(+(n*1000).toFixed(6))/1000;   // half a fils rounds up
+  const sum=L=>L.reduce((a,o)=>{const c=calc(o);a.items+=c.items;a.diff+=c.diff;a.com+=c.com;a.n++;return a},{items:0,diff:0,com:0,n:0});
+  const done=O.filter(o=>o.status==='done'),open=O.filter(o=>o.status!=='done');const D=sum(done),P=sum(open);
+  const months=[...Array(12)].map((_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);return d.toISOString().slice(0,7)});
+  $('#pane').innerHTML=`<div class="toolbar"><select id="cmm" style="max-width:200px">${months.map(m=>`<option value="${m}" ${m===cm.m?'selected':''}>${new Date(m+'-01').toLocaleDateString('ar-JO',{month:'long',year:'numeric'})}</option>`).join('')}</select><button class="btn alt" id="cmx">تصدير Excel</button></div>
+  <div class="demo">الأسعار على الموقع = سعر ترست + <b>${mkP}%</b>، والعمولة <b>${cP}%</b> من قيمة المبيعات أونلاين (بدون التوصيل). تنحسب الطلبات <b>المسلَّمة</b> فقط؛ الملغية ما بتنحسب. النسب بتتغير من الإعدادات.</div>
+  <div class="kpis"><div class="kpi"><b>${D.n}</b><span>طلب مسلَّم</span></div><div class="kpi"><b>${fmt(r3(D.items))}</b><span>مبيعات أونلاين (بدون توصيل)</span></div><div class="kpi"><b>${fmt(r3(D.diff))}</b><span>فرق الزيادة ${mkP}%</span></div><div class="kpi"><b>${fmt(r3(D.com))}</b><span>العمولة ${cP}%</span></div><div class="kpi" style="outline:2px solid var(--gold)"><b>${fmt(r3(D.diff+D.com))}</b><span>المستحق عن الشهر</span></div></div>
+  ${P.n?`<p class="note">بالإضافة: ${P.n} طلب لسا ما تسلّم (${fmt(r3(P.diff+P.com))} متوقعة) – بتنحسب لما تصير حالتها «تم التسليم».</p>`:''}
+  ${done.some(o=>calc(o).nob)?'<p class="note">بعض البنود ما فيها سعر ترست (طلبات قبل تفعيل الزيادة أو منتجات مش مربوطة) – فرقها محسوب صفر.</p>':''}
+  ${O.length?`<table><thead><tr><th>الطلب</th><th>التاريخ</th><th>الحالة</th><th class="n">المبيعات</th><th class="n">الفرق</th><th class="n">العمولة</th><th class="n">المستحق</th></tr></thead><tbody>${O.map(o=>{const c=calc(o);return `<tr style="${o.status==='done'?'':'opacity:.55'}"><td><button type="button" class="linkish" data-od="${esc(o.id)}">${esc(o.id)}</button></td><td class="note">${new Date(o.date).toLocaleDateString('ar-JO')}</td><td>${esc((STATUS[o.status]||[o.status])[0])}</td><td class="n">${fmt(r3(c.items))}</td><td class="n">${fmt(r3(c.diff))}</td><td class="n">${fmt(r3(c.com))}</td><td class="n"><b>${fmt(r3(c.diff+c.com))}</b></td></tr>`}).join('')}</tbody></table>`:'<div class="empty">ما في طلبات أونلاين بهالشهر.</div>'}`;
+  $('#cmm').onchange=e=>{cm.m=e.target.value;paneCommission()};
+  $('#cmx').onclick=async()=>{await loadXLSX();const rows=O.map(o=>{const c=calc(o);return{'الطلب':o.id,'التاريخ':new Date(o.date).toLocaleDateString('en-GB'),'الحالة':(STATUS[o.status]||[o.status])[0],'محسوب':o.status==='done'?'نعم':'لا','المبيعات (د.أ)':r3(c.items),'فرق الزيادة':r3(c.diff),'العمولة':r3(c.com),'المستحق':r3(c.diff+c.com)}});
+    rows.push({'الطلب':'المجموع (المسلَّم)','المبيعات (د.أ)':r3(D.items),'فرق الزيادة':r3(D.diff),'العمولة':r3(D.com),'المستحق':r3(D.diff+D.com)});
+    const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'العمولة '+cm.m);XLSX.writeFile(wb,'sn-commission-'+cm.m+'.xlsx')}}
 async function paneAccount(){
   const {data}=await sb.auth.getUser();const email=data?.user?.email||'';
   $('#pane').innerHTML=`<form id="pwf" style="max-width:420px"><p class="note" style="margin-top:0">مسجّلة الدخول باسم <b dir="ltr">${esc(email)}</b></p>
@@ -735,15 +757,16 @@ function paneSettings(){
   <label for="sw">رقم واتساب لاستقبال الطلبات (بالصيغة الدولية)</label><input id="sw" type="text" dir="ltr" value="${esc(s.whatsapp)}">
   <label for="swm">إرسال الطلبات على واتساب</label><select id="swm"><option value="optional" ${s.waMode!=='auto'?'selected':''}>اختياري – زر للزبون بعد تأكيد الطلب</option><option value="auto" ${s.waMode==='auto'?'selected':''}>تلقائي – يفتح واتساب للزبون بالطلب جاهز</option></select>
   <label for="sur">سعر الدولار: 1 دينار = ؟ دولار (للزوار من خارج الأردن)</label><div class="row"><input id="sur" type="number" min="0.5" max="3" step="0.001" dir="ltr" value="${s.usdRate||1.41}" style="max-width:140px"><label class="row" style="margin:0"><input type="checkbox" id="sua" ${s.usdAuto!==false?'checked':''} style="width:20px;height:20px"> عرض الأسعار بالدولار تلقائياً لزوار خارج الأردن</label></div>
+  <div class="row"><div style="flex:1"><label for="smk">زيادة أسعار الموقع على سعر ترست (%)</label><input id="smk" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.markup??0}"></div><div style="flex:1"><label for="scm">العمولة على المبيعات أونلاين (%)</label><input id="scm" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.commission??0}"></div></div>
   <label for="sfo">توصيل مجاني للطلبات من (دينار) — 0 لإلغائه</label><input id="sfo" type="number" min="0" step="0.5" dir="ltr" value="${s.freeOver||0}"><label>مناطق التوصيل (أمثلة – عدّليها حسب أسعاركم): الاسم عربي | إنجليزي | الأجرة | خارج الأردن</label><p class="note" style="margin:0 0 6px">للمناطق خارج الأردن: الأجرة تُحدَّد مع الزبون بعد الطلب، والزبون يدخل الدولة والمدينة.</p>${s.zones.map((z,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,.8fr) auto 44px;align-items:center"><input type="text" data-zn="${i}" value="${esc(z.name)}" aria-label="المنطقة"><input type="text" dir="ltr" data-zne="${i}" value="${esc(z.name_en||'')}" aria-label="English"><input type="number" step="0.25" min="0" data-zf="${i}" value="${z.fee}" dir="ltr" aria-label="الأجرة" ${z.intl?'disabled':''}><label class="row" style="margin:0;color:var(--ink);font-size:13px;white-space:nowrap"><input type="checkbox" data-zi="${i}" ${z.intl?'checked':''} style="width:20px;height:20px"> خارج الأردن</label><button type="button" data-zx="${i}" aria-label="حذف">×</button></div>`).join('')}
   <button type="button" class="btn alt" id="addz">+ منطقة</button>
   <div class="row" style="justify-content:space-between;margin-top:20px"><span></span><button class="btn">حفظ الإعدادات</button></div></form>`;
-  const sync=()=>{s.store=$('#sn').value;s.store_en=$('#sne').value;s.whatsapp=$('#sw').value.replace(/\D/g,'');s.freeOver=+$('#sfo').value||0;s.waMode=$('#swm').value;s.usdRate=+$('#sur').value||1.41;s.usdAuto=$('#sua').checked;s.zones=s.zones.map((z,i)=>({name:$(`[data-zn="${i}"]`).value,name_en:$(`[data-zne="${i}"]`).value,fee:+$(`[data-zf="${i}"]`).value||0,intl:$(`[data-zi="${i}"]`).checked}))};
+  const sync=()=>{s.store=$('#sn').value;s.store_en=$('#sne').value;s.whatsapp=$('#sw').value.replace(/\D/g,'');s.freeOver=+$('#sfo').value||0;s.waMode=$('#swm').value;s.usdRate=+$('#sur').value||1.41;s.markup=Math.max(0,+$('#smk').value||0);s.commission=Math.max(0,+$('#scm').value||0);s.usdAuto=$('#sua').checked;s.zones=s.zones.map((z,i)=>({name:$(`[data-zn="${i}"]`).value,name_en:$(`[data-zne="${i}"]`).value,fee:+$(`[data-zf="${i}"]`).value||0,intl:$(`[data-zi="${i}"]`).checked}))};
   $('#addz').onclick=()=>{sync();s.zones.push({name:'',fee:0});draw()};
   document.querySelectorAll('[data-zx]').forEach(b=>b.onclick=()=>{sync();s.zones.splice(+b.dataset.zx,1);draw()});
-    $('#sf').onsubmit=async e=>{e.preventDefault();sync();
+    $('#sf').onsubmit=async e=>{e.preventDefault();const mk0=s.markup;sync();
     if(!s.zones.length)return toast('لازم تكون في منطقة توصيل وحدة على الأقل');if(s.zones.some(z=>!z.name.trim()))return toast('في منطقة توصيل بدون اسم');
-    if(s.whatsapp.length<9)return toast('رقم الواتساب غير صحيح');if(await saveSettings()){setName();toast('تم حفظ الإعدادات')}};};
+    if(s.whatsapp.length<9)return toast('رقم الواتساب غير صحيح');if(await saveSettings()){setName();if(mk0!==s.markup){toast('جاري تحديث أسعار الموقع…');await reloadAllProducts()}toast('تم حفظ الإعدادات')}};};
   draw();
 }
 
