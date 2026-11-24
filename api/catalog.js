@@ -28,6 +28,6 @@ module.exports = async (req, res) => {
     const body = r.ok ? await r.text() : await viaTable();
     done(200, body, 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
   } catch (e) {
-    done(502, JSON.stringify({ error: 'upstream' }), 'no-store');
+    done(502, JSON.stringify({ error: 'upstream', detail: String(e && e.message || e).slice(0, 200) }), 'no-store');
   }
 };
