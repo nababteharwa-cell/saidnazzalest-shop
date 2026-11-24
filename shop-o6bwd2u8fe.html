@@ -249,14 +249,9 @@ async function loadShop(fresh){
     return true}
   try{const c=await fetchCat(fresh);applyCat(c);saveCat(c);return true}
   catch(e){console.error(e);$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاول مرة ثانية.</div>';return false}}
-async function allProducts(){const q=()=>sb.from('products').select('data,sort').order('sort').order('id');
-  const r0=await q().range(0,999);if(r0.error)return{error:r0.error};if(r0.data.length<1000)return{data:r0.data};
-  const c=await sb.from('products').select('id',{count:'exact',head:true});const total=c.count||0;const pages=[];
-  for(let from=1000;from<Math.max(total,2000);from+=1000)pages.push(q().range(from,from+999));
-  const rs=await Promise.all(pages);const bad=rs.find(r=>r.error);if(bad)return{error:bad.error};
-  const out=[...r0.data,...rs.flatMap(r=>r.data)];
-  if(rs.length&&rs[rs.length-1].data.length===1000){for(let from=1000+rs.length*1000;;from+=1000){const r=await q().range(from,from+999);if(r.error)return{error:r.error};out.push(...r.data);if(r.data.length<1000)break}}
-  return{data:out}}
+async function allProducts(){const q=from=>sb.from('products').select('data,sort').order('sort').order('id').range(from,from+999);const out=[];
+  for(let from=0;;from+=6000){const rs=await Promise.all([0,1,2,3,4,5].map(k=>q(from+k*1000)));const bad=rs.find(r=>r.error);if(bad)return{error:bad.error};
+    rs.forEach(r=>out.push(...r.data));if(rs[5].data.length<1000)break}return{data:out}}
 const rowToOrder=r=>({id:r.code,dbid:r.id,date:r.created_at,status:r.status,...r.customer,items:r.items,sub:+r.sub,fee:+r.fee,total:+r.total});
 const BASE=new Map();const snap=ps=>ps.forEach(p=>BASE.set(p.id,new Map(p.vars.map(v=>[v.label,v.stock??null]))));
 async function reloadAllProducts(){const p=await allProducts();if(!p.error){db.products.splice(0,db.products.length,...p.data.map(r=>r.data));BASE.clear();snap(db.products)}}
