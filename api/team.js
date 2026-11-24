@@ -1,6 +1,8 @@
 // Panel users: create logins, set permissions, reset passwords, disable or remove.
 // Runs on Vercel with the Supabase secret key (env SUPABASE_SECRET_KEY), which never reaches the browser.
-// Only a signed-in owner (row in public.admins) may call it.
+// Shop actions: only a signed-in shop owner (row in public.admins).
+// Stock actions (action starts with "stock_"): a stock-system owner (inv_users.role = 'owner'). They only manage
+// access to the stock system and cannot change the password of, disable or delete a shop owner.
 const URL_ = process.env.SUPABASE_URL || 'https://yjmnoqdbwnpowwbjrjjz.supabase.co';
 const SECRET = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const PERMS = ['orders', 'products', 'stock', 'history', 'commission', 'settings'];
@@ -26,8 +28,11 @@ async function caller(req) {
   const r = await fetch(URL_ + '/auth/v1/user', { headers: { apikey: req.headers['x-anon-key'] || SECRET, Authorization: 'Bearer ' + tok } });
   if (!r.ok) return null;
   const u = await r.json();
-  const own = await rest('admins?select=user_id&user_id=eq.' + encodeURIComponent(u.id));
-  return own && own.length ? u : null;
+  const [own, inv] = await Promise.all([rest('admins?select=user_id&user_id=eq.' + encodeURIComponent(u.id)),
+    rest('inv_users?select=role&user_id=eq.' + encodeURIComponent(u.id))]);
+  u.shopOwner = !!(own && own.length);
+  u.stockOwner = !!(inv && inv.length && inv[0].role === 'owner');
+  return u;
 }
 const cleanPerms = p => [...new Set((Array.isArray(p) ? p : []).filter(x => PERMS.includes(x)))];
 const okPassword = p => typeof p === 'string' && p.length >= 8;
@@ -45,6 +50,69 @@ async function setRoles(id, b) {
   }
 }
 
+// ---------- stock-system users ----------
+async function stockAction(b, me) {
+  const inv = await rest('inv_users?select=user_id,role,name');
+  const stockOwners = inv.filter(x => x.role === 'owner').map(x => x.user_id);
+  const role = b.role === 'owner' ? 'owner' : 'staff';
+  const name = String(b.name || '').trim().slice(0, 80) || null;
+  const setInv = (id, r, n) => rest('inv_users?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify(n === undefined ? { user_id: id, role: r } : { user_id: id, role: r, name: n }) });
+
+  if (b.action === 'stock_list') {
+    const list = await auth('admin/users?per_page=1000');
+    const all = list.users || list || [];
+    const users = inv.map(x => {
+      const u = all.find(a => a.id === x.user_id) || {};
+      return { id: x.user_id, email: u.email || '', name: x.name || '', role: x.role, last: u.last_sign_in_at || null,
+               active: !(u.banned_until && new Date(u.banned_until) > new Date()), me: x.user_id === me.id };
+    }).sort((a, c) => (a.role === c.role ? a.email.localeCompare(c.email) : a.role === 'owner' ? -1 : 1));
+    return [200, { users }];
+  }
+  if (b.action === 'stock_create') {
+    const email = String(b.email || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return [400, { error: 'bad_email' }];
+    // An existing login (for example a shop-panel user) just gets access; its password is not touched.
+    const list = await auth('admin/users?per_page=1000');
+    const found = (list.users || list || []).find(u => (u.email || '').toLowerCase() === email);
+    if (found) {
+      if (inv.some(x => x.user_id === found.id)) return [400, { error: 'already_member' }];
+      await setInv(found.id, role, name);
+      return [200, { ok: true, id: found.id, existing: true }];
+    }
+    if (!okPassword(b.password)) return [400, { error: 'weak_password' }];
+    let u;
+    try { u = await auth('admin/users', { method: 'POST', body: JSON.stringify({ email, password: b.password, email_confirm: true }) }); }
+    catch (e) { return [400, { error: /already|registered|exists/i.test(e.message) ? 'email_exists' : e.message }]; }
+    await setInv(u.id, role, name);
+    return [200, { ok: true, id: u.id }];
+  }
+  const id = String(b.id || '');
+  if (!/^[0-9a-f-]{36}$/.test(id)) return [400, { error: 'bad_id' }];
+  const member = inv.find(x => x.user_id === id);
+  if (!member) return [400, { error: 'not_member' }];
+  const isShopOwner = (await rest('admins?select=user_id&user_id=eq.' + id)).length > 0;
+  if (b.action === 'stock_update') {
+    if (id === me.id && role !== 'owner') return [400, { error: 'cannot_change_self' }];
+    if (member.role === 'owner' && role !== 'owner' && stockOwners.length <= 1) return [400, { error: 'last_owner' }];
+    await setInv(id, role, b.name === undefined ? undefined : name);
+    return [200, { ok: true }];
+  }
+  if (b.action === 'stock_password') {
+    if (isShopOwner && !me.shopOwner && id !== me.id) return [403, { error: 'protected_user' }];
+    if (!okPassword(b.password)) return [400, { error: 'weak_password' }];
+    await auth('admin/users/' + id, { method: 'PUT', body: JSON.stringify({ password: b.password }) });
+    return [200, { ok: true }];
+  }
+  if (b.action === 'stock_remove') {
+    if (id === me.id) return [400, { error: 'cannot_change_self' }];
+    if (member.role === 'owner' && stockOwners.length <= 1) return [400, { error: 'last_owner' }];
+    await rest('inv_users?user_id=eq.' + id, { method: 'DELETE' });
+    return [200, { ok: true }];
+  }
+  return [400, { error: 'bad_action' }];
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const send = (code, obj) => { res.statusCode = code; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(obj)); };
@@ -55,7 +123,11 @@ module.exports = async (req, res) => {
     if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
     b = b || {};
     const me = await caller(req);
-    if (!me) return send(403, { error: 'owner_only' });
+    if (String(b.action || '').startsWith('stock_')) {
+      if (!me || !me.stockOwner) return send(403, { error: 'owner_only' });
+      return send(...await stockAction(b, me));
+    }
+    if (!me || !me.shopOwner) return send(403, { error: 'owner_only' });
     const owners = (await rest('admins?select=user_id')).map(r => r.user_id);
 
     if (b.action === 'list') {
