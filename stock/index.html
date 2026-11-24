@@ -119,7 +119,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:#F7F8FB}
 <main id="app"><div class="empty">…</div></main>
 <div class="veil" id="veil"></div><div class="modal" id="modal" role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast" role="status"></div>
-<div class="cam" id="cam"><video id="camv" playsinline muted></video><div class="row"><span style="color:#fff" id="camt">وجّهي الكاميرا على الباركود</span><button class="btn alt" id="camx">إغلاق</button></div></div>
+<div class="cam" id="cam"><video id="camv" playsinline muted></video><div class="row"><span style="color:#fff" id="camt">وجّه الكاميرا على الباركود</span><button class="btn alt" id="camx">إغلاق</button></div></div>
 <script>
 {
 const CFG=window.SN_CONFIG||{};
@@ -134,7 +134,7 @@ const fm=n=>(+n||0).toLocaleString('en',{maximumFractionDigits:3,minimumFraction
 const fd=d=>d?new Date(d).toLocaleString('ar-JO',{dateStyle:'short',timeStyle:'short'}):'—';
 const fday=d=>d?new Date(d).toLocaleDateString('ar-JO',{dateStyle:'medium'}):'—';
 const toast=(m,ms=2200)=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),ms)};
-const ERR={owner_only:'هذه العملية لصاحبة الحساب فقط',not_allowed:'ما عندك صلاحية',bad_qty:'كمية غير صحيحة',reason_required:'اكتبي سبب التسوية',need_opening:'أول استيراد لازم يكون رصيد افتتاحي',no_such_login:'ما في حساب دخول بهالإيميل – أنشئيه أولاً من Supabase',cannot_void:'ما بينفع إلغاء هالحركة',use_order_status:'حركات الموقع تُلغى من حالة الطلب في لوحة المتجر',cannot_remove_self:'ما بتقدري تشيلي حسابك',cannot_demote_self:'ما بتقدري تغيّري صلاحيتك',no_item:'الصنف غير موجود',ledger_is_permanent:'سجل الحركات ما بينعدّل'};
+const ERR={owner_only:'هذه العملية لصاحب الحساب فقط',not_allowed:'ما عندك صلاحية',bad_qty:'كمية غير صحيحة',reason_required:'اكتب سبب التسوية',need_opening:'أول استيراد لازم يكون رصيد افتتاحي',no_such_login:'ما في حساب دخول بهالإيميل – أنشئه أولاً من Supabase',cannot_void:'ما بينفع إلغاء هالحركة',use_order_status:'حركات الموقع تُلغى من حالة الطلب في لوحة المتجر',cannot_remove_self:'ما بتقدر تشيل حسابك',cannot_demote_self:'ما بتقدر تغيّر صلاحيتك',no_item:'الصنف غير موجود',ledger_is_permanent:'سجل الحركات ما بينعدّل'};
 const emsg=e=>{const m=(e&&e.message)||String(e);const k=Object.keys(ERR).find(k=>m.includes(k));return k?ERR[k]:'صار خطأ: '+m};
 const KIND={opening:'رصيد افتتاحي',pos_sale:'بيع كاشير (ترست)',pos_purchase:'شراء (ترست)',online_sale:'بيع الموقع',online_return:'إرجاع طلب موقع',social_sale:'بيع مباشر / سوشال',purchase:'استلام بضاعة',return:'مرتجع زبون',adjust:'تسوية',count:'جرد',void:'إلغاء حركة'};
 const CH={instagram:'انستغرام',facebook:'فيسبوك',whatsapp:'واتساب',tiktok:'تيك توك',showroom:'المعرض',phone:'هاتف',other:'أخرى',website:'الموقع',trust:'ترست',count:'جرد'};
@@ -160,7 +160,7 @@ $('#veil').onclick=close;document.addEventListener('keydown',e=>{if(e.key==='Esc
 document.addEventListener('click',e=>{if(e.target.closest('[data-close]'))close()});
 let camStream=null,camLoop=0;
 const camOk=()=>'BarcodeDetector' in window&&navigator.mediaDevices;
-async function camScan(cb){if(!camOk())return toast('الكاميرا ما بتدعم مسح الباركود على هالجهاز – استخدمي قارئ الباركود');
+async function camScan(cb){if(!camOk())return toast('الكاميرا ما بتدعم مسح الباركود على هالجهاز – استخدم قارئ الباركود');
   try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})}catch(e){return toast('ما في إذن للكاميرا')}
   const v=$('#camv');v.srcObject=camStream;await v.play();$('#cam').classList.add('on');const det=new BarcodeDetector();let last='';
   const tick=async()=>{if(!camStream)return;try{const r=await det.detect(v);if(r[0]&&r[0].rawValue!==last){last=r[0].rawValue;navigator.vibrate&&navigator.vibrate(60);cb(r[0].rawValue);setTimeout(()=>last='',1500)}}catch(e){}camLoop=requestAnimationFrame(tick)};tick()}
@@ -168,7 +168,7 @@ function camStop(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camS
 $('#camx').onclick=camStop;
 
 /* ---------- picker: type a name or scan a barcode ---------- */
-function picker(host,onPick,ph='ابحثي بالاسم أو امسحي الباركود'){
+function picker(host,onPick,ph='ابحث بالاسم أو امسح الباركود'){
   host.innerHTML=`<div class="search"><div class="row" style="flex-wrap:nowrap"><input type="search" class="pk" placeholder="${ph}" autocomplete="off" enterkeyhint="go">${camOk()?'<button type="button" class="btn alt pkc" aria-label="مسح بالكاميرا" style="flex:none">📷</button>':''}</div><div class="drop" hidden></div></div>`;
   const inp=host.querySelector('.pk'),dr=host.querySelector('.drop');let res=[],hi=0;
   const draw=()=>{if(!res.length){dr.hidden=true;return}dr.hidden=false;dr.innerHTML=res.map((i,k)=>`<button type="button" data-k="${k}" class="${k===hi?'hi':''}"><span>${esc(i.name)}<br><span class="code">${esc(i.barcode||'')} · #${esc(i.code)}</span></span><span class="n ${i.qty<0?'neg':''}">${fq(i.qty)}</span></button>`).join('')};
@@ -195,7 +195,7 @@ async function start(){
   const {data}=await sb.auth.getSession();if(!data.session)return renderLogin();
   me=data.session.user;const r=await sb.from('inv_users').select('role,name').eq('user_id',me.id).maybeSingle();
   if(!r.data){await sb.auth.signOut();return renderLogin('هذا الحساب ما عنده صلاحية على نظام المخزون')}
-  role=r.data.role;myName=r.data.name||me.email;$('#who').innerHTML=`${esc(myName)}<br>${isOwner()?'صاحبة الحساب':'موظف'} · <button class="btn sm alt" id="out" style="min-height:28px;padding:0 10px;background:transparent;color:#fff;border-color:#fff6">خروج</button>`;
+  role=r.data.role;myName=r.data.name||me.email;$('#who').innerHTML=`${esc(myName)}<br>${isOwner()?'صاحب الحساب':'موظف'} · <button class="btn sm alt" id="out" style="min-height:28px;padding:0 10px;background:transparent;color:#fff;border-color:#fff6">خروج</button>`;
   $('#out').onclick=async()=>{await sb.auth.signOut();location.reload()};
   $('#app').innerHTML='<div class="empty">جاري تحميل الأصناف…</div>';
   try{await loadItems()}catch(e){$('#app').innerHTML=`<div class="errbox">تعذّر التحميل: ${esc(emsg(e))}</div>`;return}
@@ -212,8 +212,8 @@ PANES.home=async()=>{
   const act=items.filter(i=>i.active),inS=act.filter(i=>i.qty>0),out=act.filter(i=>i.qty===0),neg=act.filter(i=>i.qty<0),low=act.filter(lowOf),never=act.filter(i=>!i.counted_at&&i.qty!==0);
   const val=inS.reduce((a,i)=>a+i.qty*(i.price||0),0);
   const daysSince=lastImport?Math.floor((Date.now()-new Date(lastImport.created_at))/864e5):null;
-  $('#app').innerHTML=`${!items.length?`<div class="warnbox">النظام فاضي. ${isOwner()?'ابدئي باستيراد «كشف المواد» من ترست كرصيد افتتاحي من تبويب <b>استيراد ترست</b>.':'اطلبي من صاحبة الحساب استيراد الأصناف.'}</div>`:''}
-  ${isOwner()&&items.length&&(daysSince==null||daysSince>=1)?`<div class="warnbox">آخر استيراد من ترست: ${lastImport?fday(lastImport.created_at):'—'}. استوردي «كشف المواد» اليوم بعد إغلاق الكاشير لتسجيل مبيعاته. <button class="btn sm gold" data-go="import">استيراد</button></div>`:''}
+  $('#app').innerHTML=`${!items.length?`<div class="warnbox">النظام فاضي. ${isOwner()?'ابدأ باستيراد «كشف المواد» من ترست كرصيد افتتاحي من تبويب <b>استيراد ترست</b>.':'اطلب من صاحب الحساب استيراد الأصناف.'}</div>`:''}
+  ${isOwner()&&items.length&&(daysSince==null||daysSince>=1)?`<div class="warnbox">آخر استيراد من ترست: ${lastImport?fday(lastImport.created_at):'—'}. استورد «كشف المواد» اليوم بعد إغلاق الكاشير لتسجيل مبيعاته. <button class="btn sm gold" data-go="import">استيراد</button></div>`:''}
   <div class="kpis">
    <button class="kpi" data-f="pos"><b>${inS.length.toLocaleString('en')}</b><span>صنف متوفر من ${act.length.toLocaleString('en')}</span></button>
    <button class="kpi" data-f="zero"><b>${out.length.toLocaleString('en')}</b><span>نفد</span></button>
@@ -223,7 +223,7 @@ PANES.home=async()=>{
    <div class="kpi"><b style="font-size:20px">${fm(val)}</b><span>قيمة المخزون بسعر البيع</span></div></div>
   <div class="split"><div class="card"><h3 style="margin-top:0">حركة اليوم</h3><div id="today" class="note">…</div></div>
   <div class="card"><h3 style="margin-top:0">إجراءات سريعة</h3><div class="row"><button class="btn" data-go="record">تسجيل بيع</button><button class="btn alt" data-go="record" data-k="purchase">استلام بضاعة</button><button class="btn alt" data-go="count">جرد</button></div>
-  <p class="note" style="margin-bottom:0">نسبة الأصناف المجرودة: <b>${act.length?Math.round(100*act.filter(i=>i.counted_at).length/act.length):0}%</b>. جردي قسم كل يوم حتى يصير المخزون دقيق.</p></div></div>`;
+  <p class="note" style="margin-bottom:0">نسبة الأصناف المجرودة: <b>${act.length?Math.round(100*act.filter(i=>i.counted_at).length/act.length):0}%</b>. جرّد قسم كل يوم حتى يصير المخزون دقيق.</p></div></div>`;
   $('#app').onclick=e=>{const g=e.target.closest('[data-go]');if(g){if(g.dataset.k)recKind=g.dataset.k;go(g.dataset.go)}const f=e.target.closest('[data-f]');if(f){itf.f=f.dataset.f;itf.q='';go('items')}};
   const d0=new Date();d0.setHours(0,0,0,0);const r=await sb.from('inv_moves').select('kind,channel,delta,unit_price,item_id').gte('created_at',d0.toISOString()).eq('voided',false).limit(3000);
   if(r.error||!$('#today'))return;const g={};r.data.forEach(m=>{if(m.kind==='void')return;const k=m.kind;g[k]=g[k]||{n:0,q:0,v:0};g[k].n++;g[k].q+=Math.abs(+m.delta);if(+m.delta<0)g[k].v+=-m.delta*(m.unit_price??byId.get(m.item_id)?.price??0)});
@@ -234,7 +234,7 @@ let itf={q:'',f:'',g:'',sort:'name'};
 PANES.items=()=>{
   const F={pos:['متوفر',i=>i.qty>0],zero:['نفد',i=>i.qty===0],neg:['بالسالب',i=>i.qty<0],low:['الحد الأدنى',lowOf],never:['ما انجرد',i=>!i.counted_at&&i.qty!==0],diff:['يختلف عن ترست',i=>i.trust_qty!=null&&Math.abs(i.trust_qty-i.qty)>=1],off:['موقوف',i=>!i.active]};
   $('#app').innerHTML=`<div class="row sp"><h2 style="margin:0">الأصناف <span class="note" id="ic"></span></h2>${isOwner()?'<button class="btn alt sm" id="xexp">تصدير Excel</button>':''}</div>
-  <div class="row" style="margin-top:10px"><input type="search" id="iq" placeholder="ابحثي بالاسم أو الباركود أو الرمز" value="${esc(itf.q)}" style="flex:1 1 260px" autocomplete="off">${camOk()?'<button class="btn alt" id="icam" aria-label="مسح بالكاميرا">📷</button>':''}
+  <div class="row" style="margin-top:10px"><input type="search" id="iq" placeholder="ابحث بالاسم أو الباركود أو الرمز" value="${esc(itf.q)}" style="flex:1 1 260px" autocomplete="off">${camOk()?'<button class="btn alt" id="icam" aria-label="مسح بالكاميرا">📷</button>':''}
   <select id="isort" style="max-width:190px"><option value="name">ترتيب: الاسم</option><option value="qty">الكمية (الأقل)</option><option value="qtyd">الكمية (الأكثر)</option><option value="value">القيمة (الأعلى)</option></select></div>
   <div class="chips">${Object.entries(F).map(([k,[n,f]])=>`<button class="chip ${itf.f===k?'on':''}" data-if="${k}">${n} <b>${items.filter(f).length.toLocaleString('en')}</b></button>`).join('')}</div><div id="il"></div>`;
   $('#isort').value=itf.sort;
@@ -242,7 +242,7 @@ PANES.items=()=>{
     const ex=q&&findCode(q);if(ex&&!L.includes(ex))L.unshift(ex);
     const S={name:(a,b)=>a.name.localeCompare(b.name,'ar'),qty:(a,b)=>a.qty-b.qty,qtyd:(a,b)=>b.qty-a.qty,value:(a,b)=>b.qty*(b.price||0)-a.qty*(a.price||0)}[itf.sort];L.sort(S);
     $('#ic').textContent='('+L.length.toLocaleString('en')+')';const more=L.length>300;L=L.slice(0,300);
-    $('#il').innerHTML=L.length?`<table class="stack"><thead><tr><th>الصنف</th><th class="n">الكمية</th><th class="n hide-m">السعر</th><th class="hide-m">آخر جرد</th></tr></thead><tbody>${L.map(i=>`<tr class="click" data-it="${i.id}"><td>${esc(i.name)}<div class="code">${esc(i.barcode||'')} · #${esc(i.code)}</div></td><td class="n ${i.qty<0?'neg':lowOf(i)?'low':i.qty===0?'zero':''}"><b>${fq(i.qty)}</b></td><td class="n hide-m">${i.price!=null?fm(i.price):'—'}</td><td class="hide-m note">${i.counted_at?fday(i.counted_at):'—'}</td></tr>`).join('')}</tbody></table>${more?'<p class="note">يظهر أول 300 – استخدمي البحث أو الفلاتر.</p>':''}`:'<div class="empty">ما في أصناف بهالاختيار.</div>'};
+    $('#il').innerHTML=L.length?`<table class="stack"><thead><tr><th>الصنف</th><th class="n">الكمية</th><th class="n hide-m">السعر</th><th class="hide-m">آخر جرد</th></tr></thead><tbody>${L.map(i=>`<tr class="click" data-it="${i.id}"><td>${esc(i.name)}<div class="code">${esc(i.barcode||'')} · #${esc(i.code)}</div></td><td class="n ${i.qty<0?'neg':lowOf(i)?'low':i.qty===0?'zero':''}"><b>${fq(i.qty)}</b></td><td class="n hide-m">${i.price!=null?fm(i.price):'—'}</td><td class="hide-m note">${i.counted_at?fday(i.counted_at):'—'}</td></tr>`).join('')}</tbody></table>${more?'<p class="note">يظهر أول 300 – استخدم البحث أو الفلاتر.</p>':''}`:'<div class="empty">ما في أصناف بهالاختيار.</div>'};
   draw();
   $('#iq').oninput=e=>{itf.q=e.target.value;draw()};$('#iq').onkeydown=e=>{if(e.key==='Enter'){const i=findCode(e.target.value);if(i)itemCard(i.id)}};
   $('#isort').onchange=e=>{itf.sort=e.target.value;draw()};
@@ -264,7 +264,7 @@ async function itemCard(id){const i=byId.get(id);if(!i)return;
   const h=await sb.from('inv_moves').select('id,delta,kind,channel,ref,note,qty_after,by_name,created_at,voided,voids,unit_price').eq('item_id',id).order('created_at',{ascending:false}).limit(150);
   if(!$('#ih'))return;if(h.error)return $('#ih').textContent=emsg(h.error);
   $('#ih').innerHTML=h.data.length?`<table class="stack"><thead><tr><th>التاريخ</th><th>الحركة</th><th class="n">الكمية</th><th class="n">الرصيد</th><th class="hide-m">بواسطة</th>${isOwner()?'<th></th>':''}</tr></thead><tbody>${h.data.map(m=>`<tr style="${m.voided?'opacity:.5;text-decoration:line-through':''}"><td class="note">${fd(m.created_at)}</td><td>${tag(m.kind)} ${m.channel&&CH[m.channel]&&m.channel!=='trust'?`<span class="note">${CH[m.channel]}</span>`:''}${m.ref?`<div class="note">${esc(m.ref)}</div>`:''}${m.note?`<div class="note">${esc(m.note)}</div>`:''}</td><td class="n ${+m.delta<0?'neg':''}">${+m.delta>0?'+':''}${fq(m.delta)}</td><td class="n">${fq(m.qty_after)}</td><td class="hide-m note">${esc(m.by_name||'')}</td>${isOwner()?`<td>${!m.voided&&!['void','opening','online_sale','online_return'].includes(m.kind)?`<button class="btn sm alt" data-void="${m.id}">إلغاء</button>`:''}</td>`:''}</tr>`).join('')}</tbody></table>`:'ما في حركات.';
-  $('#ih').onclick=async e=>{const b=e.target.closest('[data-void]');if(!b)return;if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكدة؟';b.classList.add('bad');return}
+  $('#ih').onclick=async e=>{const b=e.target.closest('[data-void]');if(!b)return;if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكد؟';b.classList.add('bad');return}
     const r=await sb.rpc('inv_void',{move_id:+b.dataset.void,note:'إلغاء من سجل الصنف'});if(r.error)return toast(emsg(r.error));await refreshItems([id]);toast('تم إلغاء الحركة');itemCard(id)}}
 
 /* ---------- record: sale / receive / return / adjust ---------- */
@@ -273,11 +273,11 @@ PANES.record=()=>{
   const K=[['social_sale','بيع'],['purchase','استلام بضاعة'],['return','مرتجع زبون'],...(isOwner()?[['adjust','تسوية']]:[])];if(!K.some(k=>k[0]===recKind))recKind='social_sale';
   const sale=recKind==='social_sale',adj=recKind==='adjust';
   $('#app').innerHTML=`<h2>${K.find(k=>k[0]===recKind)[1]}</h2><div class="seg">${K.map(([k,n])=>`<button class="${k===recKind?'on':''}" data-rk="${k}">${n}</button>`).join('')}</div>
-  <div class="warnbox">${sale?'سجّلي هون المبيعات اللي <b>ما بتنزل على كاشير ترست</b>: انستغرام، فيسبوك، واتساب، تيك توك… طلبات الموقع بتنخصم لحالها.':recKind==='purchase'?'سجّلي هون البضاعة اللي <b>ما بتدخليها على ترست</b>. فواتير الشراء المدخلة على ترست بتنزل لحالها مع استيراد «كشف المواد» – ما تسجليها مرتين.':recKind==='return'?'بضاعة رجعت من زبون (مش من طلب موقع – هذول بيرجعوا لحالهم لما تلغي الطلب).':'تسوية: تالف، هدية، استعمال داخلي، أو تصحيح. اكتبي السبب – بتظهر بالسجل باسمك.'}</div>
+  <div class="warnbox">${sale?'سجّل هون المبيعات اللي <b>ما بتنزل على كاشير ترست</b>: انستغرام، فيسبوك، واتساب، تيك توك… طلبات الموقع بتنخصم لحالها.':recKind==='purchase'?'سجّل هون البضاعة اللي <b>ما بتدخلها على ترست</b>. فواتير الشراء المدخلة على ترست بتنزل لحالها مع استيراد «كشف المواد» – ما تسجلها مرتين.':recKind==='return'?'بضاعة رجعت من زبون (مش من طلب موقع – هذول بيرجعوا لحالهم لما تلغي الطلب).':'تسوية: تالف، هدية، استعمال داخلي، أو تصحيح. اكتب السبب – بتظهر بالسجل باسمك.'}</div>
   <div class="card">${sale?`<label for="rch" style="margin-top:0">القناة</label><div class="chips" id="rch" style="margin:0 0 6px">${['instagram','facebook','whatsapp','tiktok','showroom','phone','other'].map(c=>`<button type="button" class="chip ${rec.channel===c?'on':''}" data-ch="${c}">${CH[c]}</button>`).join('')}</div>`:''}
   <div id="rpk"></div><div id="rl"></div>
   <div class="split"><div><label for="rref">${recKind==='purchase'?'رقم فاتورة المورّد / اسم المورّد':'رقم الطلب / اسم الزبون (اختياري)'}</label><input id="rref" type="text" value="${esc(rec.ref)}"></div><div><label for="rnote">${adj?'السبب (إجباري)':'ملاحظة'}</label><input id="rnote" type="text" value="${esc(rec.note)}" ${adj?'required':''}></div></div>
-  ${recKind==='purchase'?`<p class="note">عندك فاتورة Excel من المورّد؟ <button type="button" class="btn sm alt" id="rxl">ارفعي الفاتورة</button></p>`:''}
+  ${recKind==='purchase'?`<p class="note">عندك فاتورة Excel من المورّد؟ <button type="button" class="btn sm alt" id="rxl">ارفع الفاتورة</button></p>`:''}
   <div class="bar"><span id="rtot" class="note"></span><button class="btn gold" id="rgo">حفظ</button></div></div>`;
   $$('[data-rk]').forEach(b=>b.onclick=()=>{recKind=b.dataset.rk;PANES.record()});
   $$('[data-ch]').forEach(b=>b.onclick=()=>{rec.channel=b.dataset.ch;$$('[data-ch]').forEach(x=>x.classList.toggle('on',x===b))});
@@ -286,7 +286,7 @@ PANES.record=()=>{
   const drawL=()=>{$('#rl').innerHTML=rec.lines.length?rec.lines.map((l,k)=>{const i=byId.get(l.id);const after=i.qty+(sale?-1:1)*(+l.qty||0);return `<div class="line"><div><b>${esc(i.name)}</b><div class="note">بالنظام ${fq(i.qty)} ← بعد الحفظ <b class="${after<0?'neg':''}">${fq(after)}</b></div></div>
     <div class="qbox"><button type="button" data-d="${k}" data-n="-1" aria-label="أقل">−</button><input type="text" inputmode="decimal" data-lq="${k}" value="${l.qty}" dir="ltr" aria-label="الكمية"><button type="button" data-d="${k}" data-n="1" aria-label="أكثر">+</button></div>
     <div class="pr">${sale?`<input type="text" inputmode="decimal" data-lp="${k}" value="${l.price??''}" dir="ltr" placeholder="السعر" aria-label="سعر القطعة">`:recKind==='purchase'?`<input type="text" inputmode="decimal" data-lp="${k}" value="${l.price??''}" dir="ltr" placeholder="الكلفة" aria-label="كلفة القطعة">`:''}</div>
-    <button type="button" class="x" data-rm="${k}" aria-label="حذف">×</button></div>`}).join(''):'<div class="empty" style="padding:20px">امسحي الباركود أو ابحثي عن الصنف لإضافته.</div>';
+    <button type="button" class="x" data-rm="${k}" aria-label="حذف">×</button></div>`}).join(''):'<div class="empty" style="padding:20px">امسح الباركود أو ابحث عن الصنف لإضافته.</div>';
     const tq=rec.lines.reduce((a,l)=>a+(+l.qty||0),0),tv=rec.lines.reduce((a,l)=>a+(+l.qty||0)*(+l.price||0),0);
     $('#rtot').innerHTML=rec.lines.length?`${rec.lines.length} صنف · ${fq(tq)} قطعة${tv?' · <b>'+fm(tv)+'</b>':''}`:'';
     $$('[data-lq]').forEach(x=>x.oninput=()=>{rec.lines[+x.dataset.lq].qty=num(x.value)??'';});
@@ -297,14 +297,14 @@ PANES.record=()=>{
   drawL();
   $('#rref').oninput=e=>rec.ref=e.target.value;$('#rnote').oninput=e=>rec.note=e.target.value;
   $('#rxl')&&($('#rxl').onclick=()=>invoiceImport(add));
-  $('#rgo').onclick=async()=>{const L=rec.lines.filter(l=>+l.qty);if(!L.length)return toast('أضيفي صنف واحد على الأقل');
-    if(adj&&!rec.note.trim()){$('#rnote').focus();return toast('اكتبي سبب التسوية')}
+  $('#rgo').onclick=async()=>{const L=rec.lines.filter(l=>+l.qty);if(!L.length)return toast('أضف صنف واحد على الأقل');
+    if(adj&&!rec.note.trim()){$('#rnote').focus();return toast('اكتب سبب التسوية')}
     if(!adj&&L.some(l=>+l.qty<0))return toast('الكميات لازم تكون موجبة');
     const b=$('#rgo');b.disabled=true;b.textContent='جاري الحفظ…';
     const r=await sb.rpc('inv_record',{kind:recKind,lines:L.map(l=>({item:l.id,qty:+l.qty,price:l.price===''||l.price==null?null:+l.price})),channel:sale?rec.channel:null,ref:rec.ref.trim()||null,note:rec.note.trim()||null});
     b.disabled=false;b.textContent='حفظ';if(r.error)return toast(emsg(r.error),4000);
     await refreshItems(L.map(l=>l.id));const neg=L.map(l=>byId.get(l.id)).filter(i=>i.qty<0);
-    toast('تم الحفظ – '+L.length+' صنف'+(neg.length?' · انتبهي: '+neg.length+' صنف صار بالسالب، جرديه':''),3500);rec={lines:[],channel:rec.channel,ref:'',note:''};PANES.record()};
+    toast('تم الحفظ – '+L.length+' صنف'+(neg.length?' · انتبه: '+neg.length+' صنف صار بالسالب، جرّده':''),3500);rec={lines:[],channel:rec.channel,ref:'',note:''};PANES.record()};
   inp.focus()};
 async function invoiceImport(add){await loadXLSX();
   show(`<div class="mh"><h2>فاتورة مورّد من Excel</h2><button class="x" data-close aria-label="إغلاق">×</button></div><div class="mb"><p class="note" style="margin-top:0">الملف لازم يكون فيه عمود باركود أو رمز ترست، وعمود كمية.</p><input type="file" id="vf" accept=".xlsx,.xls,.csv"><div id="vr"></div></div>`);
@@ -312,7 +312,7 @@ async function invoiceImport(add){await loadXLSX();
     const g=re=>cols.find(c=>re.test(String(c).toLowerCase()))||'';let mc=g(/barcode|باركود|sku|code|رمز|كود|رقم الصنف|item/),mq=g(/qty|quantity|كمية|الكمية|عدد/),mp=g(/cost|price|سعر|كلفة|تكلفة/);
     const draw=()=>{const ok=[],bad=[];rows.forEach(r=>{const c=String(r[mc]??'').trim(),q=num(r[mq]);if(!c||!q)return;const i=findCode(c);i?ok.push([i,q,num(r[mp])]):bad.push(c)});
       const sel=(id,v,l)=>`<label for="${id}">${l}</label><select id="${id}"><option value="">—</option>${cols.map(c=>`<option ${c===v?'selected':''}>${esc(c)}</option>`).join('')}</select>`;
-      $('#vr').innerHTML=`<div class="split">${sel('vc',mc,'عمود الباركود / الرمز')}${sel('vq',mq,'عمود الكمية')}</div>${sel('vp',mp,'عمود الكلفة (اختياري)')}<p class="okbox" style="margin-top:12px">${ok.length} سطر مطابق</p>${bad.length?`<p class="errbox">${bad.length} رمز مش موجود: <span class="code">${bad.slice(0,30).map(esc).join(', ')}</span></p>`:''}<button class="btn gold" id="vgo" ${ok.length?'':'disabled'} style="width:100%">أضيفي ${ok.length} سطر للاستلام</button>`;
+      $('#vr').innerHTML=`<div class="split">${sel('vc',mc,'عمود الباركود / الرمز')}${sel('vq',mq,'عمود الكمية')}</div>${sel('vp',mp,'عمود الكلفة (اختياري)')}<p class="okbox" style="margin-top:12px">${ok.length} سطر مطابق</p>${bad.length?`<p class="errbox">${bad.length} رمز مش موجود: <span class="code">${bad.slice(0,30).map(esc).join(', ')}</span></p>`:''}<button class="btn gold" id="vgo" ${ok.length?'':'disabled'} style="width:100%">أضف ${ok.length} سطر للاستلام</button>`;
       $('#vc').onchange=e=>{mc=e.target.value;draw()};$('#vq').onchange=e=>{mq=e.target.value;draw()};$('#vp').onchange=e=>{mp=e.target.value;draw()};
       $('#vgo').onclick=()=>{ok.forEach(([i,q,p])=>{const ex=rec.lines.find(l=>l.id===i.id);if(ex)ex.qty=(+ex.qty||0)+q;else rec.lines.push({id:i.id,qty:q,price:p??''})});close();PANES.record()}};draw()}}
 
@@ -323,10 +323,10 @@ const saveCnt=()=>{try{localStorage.setItem('sn-count',JSON.stringify(cnt))}catc
 PANES.count=()=>{
   const blind=cnt.blind&&!isOwner()?true:cnt.blind;
   const groups=[...new Set(items.filter(i=>i.active).map(groupOf))].map(g=>[g,items.filter(i=>i.active&&groupOf(i)===g)]).filter(([,l])=>l.length>1).sort((a,b)=>b[1].length-a[1].length).slice(0,40);
-  $('#app').innerHTML=`<h2>الجرد</h2><div class="warnbox">عدّي الموجود فعلياً على الرف واكتبيه. عند «اعتماد الجرد» بيصير رصيد النظام = اللي عدّيتيه، وبينسجل الفرق باسمك. الجرد محفوظ على الجهاز لحد ما تعتمديه.</div>
-  <div class="card"><div class="row sp"><b>أضيفي أصناف للجرد</b><div class="row"><label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" id="cs" ${cnt.scanAdd?'checked':''} style="width:20px;height:20px"> كل مسحة = +1</label>${isOwner()?`<label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" id="cb" ${cnt.blind?'checked':''} style="width:20px;height:20px"> إخفاء رصيد النظام</label>`:''}</div></div>
+  $('#app').innerHTML=`<h2>الجرد</h2><div class="warnbox">عدّ الموجود فعلياً على الرف واكتبه. عند «اعتماد الجرد» بيصير رصيد النظام = اللي عدّيته، وبينسجل الفرق باسمك. الجرد محفوظ على الجهاز لحد ما تعتمده.</div>
+  <div class="card"><div class="row sp"><b>أضف أصناف للجرد</b><div class="row"><label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" id="cs" ${cnt.scanAdd?'checked':''} style="width:20px;height:20px"> كل مسحة = +1</label>${isOwner()?`<label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" id="cb" ${cnt.blind?'checked':''} style="width:20px;height:20px"> إخفاء رصيد النظام</label>`:''}</div></div>
   <div id="cpk" style="margin-top:8px"></div>
-  <details style="margin-top:10px"><summary class="note">أو أضيفي قسم كامل (حسب أول كلمة من اسم الصنف)</summary><div class="chips">${groups.map(([g,l])=>`<button class="chip" data-cg="${esc(g)}">${esc(g)} <b>${l.length}</b></button>`).join('')}</div></details></div>
+  <details style="margin-top:10px"><summary class="note">أو أضف قسم كامل (حسب أول كلمة من اسم الصنف)</summary><div class="chips">${groups.map(([g,l])=>`<button class="chip" data-cg="${esc(g)}">${esc(g)} <b>${l.length}</b></button>`).join('')}</div></details></div>
   <div id="cl"></div>`;
   const ids=()=>Object.keys(cnt.lines).map(Number).filter(id=>byId.has(id));
   const draw=()=>{const L=ids();
@@ -336,14 +336,14 @@ PANES.count=()=>{
     $$('[data-cq]').forEach(x=>{x.oninput=()=>{cnt.lines[x.dataset.cq]=x.value===''?'':num(x.value);saveCnt()};x.onchange=()=>setTimeout(draw)});
     $$('[data-cx]').forEach(b=>b.onclick=()=>{delete cnt.lines[b.dataset.cx];saveCnt();draw()});
     $('#cn')&&($('#cn').oninput=e=>{cnt.note=e.target.value;saveCnt()});
-    $('#cclr')&&($('#cclr').onclick=e=>{if(e.target.dataset.sure!=='1'){e.target.dataset.sure='1';e.target.textContent='متأكدة؟';return}cnt.lines={};cnt.note='';saveCnt();draw()});
+    $('#cclr')&&($('#cclr').onclick=e=>{if(e.target.dataset.sure!=='1'){e.target.dataset.sure='1';e.target.textContent='متأكد؟';return}cnt.lines={};cnt.note='';saveCnt();draw()});
     $('#cgo')&&($('#cgo').onclick=review)};
   const add=i=>{if(cnt.scanAdd){cnt.lines[i.id]=(+cnt.lines[i.id]||0)+1}else if(!(i.id in cnt.lines))cnt.lines[i.id]='';saveCnt();draw();
     const x=$(`[data-cq="${i.id}"]`);if(x){x.closest('tr').scrollIntoView({block:'nearest'});if(!cnt.scanAdd){x.focus();x.select()}}};
   picker($('#cpk'),add);
   $('#cs').onchange=e=>{cnt.scanAdd=e.target.checked;saveCnt()};$('#cb')&&($('#cb').onchange=e=>{cnt.blind=e.target.checked;saveCnt();PANES.count()});
   $$('[data-cg]').forEach(b=>b.onclick=()=>{items.filter(i=>i.active&&groupOf(i)===b.dataset.cg).forEach(i=>{if(!(i.id in cnt.lines))cnt.lines[i.id]=''});saveCnt();draw()});
-  const review=()=>{const L=ids().filter(id=>cnt.lines[id]!==''&&cnt.lines[id]!=null);if(!L.length)return toast('اكتبي الكميات المعدودة أولاً');
+  const review=()=>{const L=ids().filter(id=>cnt.lines[id]!==''&&cnt.lines[id]!=null);if(!L.length)return toast('اكتب الكميات المعدودة أولاً');
     const ch=L.map(id=>{const i=byId.get(id);return{i,c:+cnt.lines[id],d:+cnt.lines[id]-i.qty}});const diff=ch.filter(x=>x.d);const val=diff.reduce((a,x)=>a+x.d*(x.i.price||0),0);
     show(`<div class="mh"><h2>مراجعة الجرد</h2><button class="x" data-close aria-label="إغلاق">×</button></div><div class="mb">
     <div class="kpis"><div class="kpi"><b>${L.length}</b><span>صنف معدود</span></div><div class="kpi"><b>${ch.length-diff.length}</b><span>مطابق</span></div><div class="kpi ${diff.length?'warn':''}"><b>${diff.length}</b><span>فيه فرق</span></div><div class="kpi"><b style="font-size:17px" class="${val<0?'neg':''}">${fm(val)}</b><span>قيمة الفرق</span></div></div>
@@ -365,8 +365,8 @@ async function readSheet(f,headerHint){await loadXLSX();const wb=XLSX.read(await
 PANES.import=async()=>{
   const first=!items.some(i=>i.trust_at);
   $('#app').innerHTML=`<h2>استيراد من ترست</h2>
-  <div class="card"><p style="margin-top:0">من برنامج ترست اطبعي تقرير <b>«كشف المواد»</b> للفرع واحفظيه Excel، وارفعيه هون${first?'.':' <b>مرة كل يوم بعد إغلاق الكاشير</b>.'}</p>
-  ${first?`<div class="warnbox"><b>أول استيراد = رصيد افتتاحي.</b> رح ننسخ كل الأصناف من ترست، والكمية المتوفرة بترست بتصير رصيد البداية. بعدها صححيها بالجرد.</div>`:`<div class="note">بيقارن النظام عمودي <b>الكمية المباعة</b> و<b>كمية الشراء</b> مع آخر استيراد، والزيادة بتنسجل كمبيعات كاشير ومشتريات. كمية ترست نفسها بتنحفظ للمقارنة بس. إذا استوردتي نفس الملف مرتين ما بيصير إشي.</div>`}
+  <div class="card"><p style="margin-top:0">من برنامج ترست اطبع تقرير <b>«كشف المواد»</b> للفرع واحفظه Excel، وارفعه هون${first?'.':' <b>مرة كل يوم بعد إغلاق الكاشير</b>.'}</p>
+  ${first?`<div class="warnbox"><b>أول استيراد = رصيد افتتاحي.</b> رح ننسخ كل الأصناف من ترست، والكمية المتوفرة بترست بتصير رصيد البداية. بعدها صححها بالجرد.</div>`:`<div class="note">بيقارن النظام عمودي <b>الكمية المباعة</b> و<b>كمية الشراء</b> مع آخر استيراد، والزيادة بتنسجل كمبيعات كاشير ومشتريات. كمية ترست نفسها بتنحفظ للمقارنة بس. إذا استوردت نفس الملف مرتين ما بيصير إشي.</div>`}
   <input type="file" id="tf" accept=".xlsx,.xls,.csv" style="margin-top:12px">
   ${first?'':`<details style="margin-top:12px"><summary class="note">خيارات متقدمة</summary><label class="row" style="color:var(--bad)"><input type="checkbox" id="topen" style="width:20px;height:20px"> اعتماد كميات ترست كرصيد جديد لكل الأصناف (بيلغي نتائج الجرد – للبداية من جديد فقط)</label></details>`}
   <div id="tr"></div></div><h3>آخر الاستيرادات</h3><div id="th" class="note">…</div>`;
@@ -386,7 +386,7 @@ PANES.import=async()=>{
     ${mode==='daily'&&!s.sales&&!s.purchases&&!s.new?'<p class="okbox">ما في جديد منذ آخر استيراد.</p>':''}
     <button class="btn gold" id="tgo" style="width:100%;margin-top:12px">${mode==='opening'?'اعتماد الرصيد الافتتاحي':'تسجيل الحركات'}</button>`;
     $('#tgo').onclick=async e=>{const b=e.target;b.disabled=true;b.textContent='جاري الاستيراد…';const r=await sb.rpc('inv_import_trust',{rows:data,mode,file_name:f.name,dry_run:false});
-      if(r.error){b.disabled=false;b.textContent='حاولي مرة ثانية';return toast(emsg(r.error),4000)}await loadItems();lastImport={created_at:new Date().toISOString()};
+      if(r.error){b.disabled=false;b.textContent='حاول مرة ثانية';return toast(emsg(r.error),4000)}await loadItems();lastImport={created_at:new Date().toISOString()};
       let added=0;if(mode==='daily'&&r.data.new){try{const P=await fetchAll('products','id,sort,data','sort');if(P.some(p=>/^t/.test(p.id)))added=await publishAll(P,false,null,true)||0}catch(e){}}
       toast('تم الاستيراد ✓'+(added?' – '+added+' صنف جديد انضاف للمتجر':''),3500);PANES.import()}}};
 
@@ -401,11 +401,11 @@ PANES.link=async()=>{
   const suggest=x=>{const want=new Set([...tok(x.p.name),...tok(x.v.label)]);const nums=[...want].filter(w=>/\d/.test(w));
     return IT.map(({i,t})=>{let s=0;want.forEach(w=>{if(t.has(w))s+=/\d/.test(w)?2:1});if(nums.length&&nums.every(n=>t.has(n)))s+=2;return[s/(Math.sqrt(t.size)+1),i]}).filter(x=>x[0]>0.5).sort((a,b)=>b[0]-a[0]).slice(0,5).map(x=>x[1])};
   const draw=()=>{const q=norm(lk.q);const L=V.filter(x=>(lk.f==='all'||(lk.f==='todo'?!x.item:!!x.item))&&(!q||norm(x.p.name+' '+x.v.label).includes(q)));
-    $('#app').innerHTML=`${publishCard(P)}<h2>ربط منتجات الموقع بأصناف ترست</h2><div class="warnbox">لكل حجم/لون بالموقع اختاري صنف ترست المقابل. بعد الربط كمية الموقع بتصير نفس كمية المخزون، وطلبات الموقع بتنخصم من المخزون وبتظهر بالسجل.</div>
+    $('#app').innerHTML=`${publishCard(P)}<h2>ربط منتجات الموقع بأصناف ترست</h2><div class="warnbox">لكل حجم/لون بالموقع اختر صنف ترست المقابل. بعد الربط كمية الموقع بتصير نفس كمية المخزون، وطلبات الموقع بتنخصم من المخزون وبتظهر بالسجل.</div>
     <div class="kpis"><div class="kpi"><b>${V.filter(x=>x.item).length}</b><span>مربوط</span></div><div class="kpi warn"><b>${V.filter(x=>!x.item).length}</b><span>غير مربوط</span></div></div>
-    <div class="row"><input type="search" id="lq" placeholder="ابحثي بمنتجات الموقع" value="${esc(lk.q)}" style="flex:1 1 240px"><div class="chips" style="margin:0">${[['todo','غير مربوط'],['done','مربوط'],['all','الكل']].map(([k,n])=>`<button class="chip ${lk.f===k?'on':''}" data-lf="${k}">${n}</button>`).join('')}</div></div>
+    <div class="row"><input type="search" id="lq" placeholder="ابحث بمنتجات الموقع" value="${esc(lk.q)}" style="flex:1 1 240px"><div class="chips" style="margin:0">${[['todo','غير مربوط'],['done','مربوط'],['all','الكل']].map(([k,n])=>`<button class="chip ${lk.f===k?'on':''}" data-lf="${k}">${n}</button>`).join('')}</div></div>
     <div id="ll" style="margin-top:10px">${L.slice(0,60).map((x,k)=>`<div class="card" data-lv="${x.pid}|${x.vi}"><div class="row sp"><div><b>${esc(x.p.name)}</b> <span class="note">– ${esc(x.v.label)} · ${x.v.price} د.أ</span></div>${x.item?`<span class="okbox" style="margin:0;padding:4px 10px">✓ ${esc(x.item.name)} · ${fq(x.item.qty)}</span>`:''}</div>
-      ${lk.open===x.pid+'|'+x.vi?`<div class="lsug" style="margin-top:8px"><p class="note" style="margin:0 0 6px">اقتراحات:</p><div class="chips" style="margin:0 0 8px">${suggest(x).map(i=>`<button class="chip" data-pick="${i.id}">${esc(i.name)} <span class="code">${fq(i.qty)}</span></button>`).join('')||'<span class="note">ما في اقتراحات – ابحثي:</span>'}</div><div class="lpk"></div>${x.item?'<button class="btn sm alt" data-unl style="margin-top:8px">فك الربط</button>':''}</div>`:`<button class="btn sm ${x.item?'alt':''}" data-op style="margin-top:6px">${x.item?'تغيير':'ربط'}</button>`}</div>`).join('')}${L.length>60?'<p class="note">يظهر أول 60 – استخدمي البحث.</p>':''}${!L.length?'<div class="empty">ما في شي هون.</div>':''}</div>`;
+      ${lk.open===x.pid+'|'+x.vi?`<div class="lsug" style="margin-top:8px"><p class="note" style="margin:0 0 6px">اقتراحات:</p><div class="chips" style="margin:0 0 8px">${suggest(x).map(i=>`<button class="chip" data-pick="${i.id}">${esc(i.name)} <span class="code">${fq(i.qty)}</span></button>`).join('')||'<span class="note">ما في اقتراحات – ابحث:</span>'}</div><div class="lpk"></div>${x.item?'<button class="btn sm alt" data-unl style="margin-top:8px">فك الربط</button>':''}</div>`:`<button class="btn sm ${x.item?'alt':''}" data-op style="margin-top:6px">${x.item?'تغيير':'ربط'}</button>`}</div>`).join('')}${L.length>60?'<p class="note">يظهر أول 60 – استخدم البحث.</p>':''}${!L.length?'<div class="empty">ما في شي هون.</div>':''}</div>`;
     $('#lq').oninput=e=>{lk.q=e.target.value;const p=e.target.selectionStart;draw();$('#lq').focus();$('#lq').setSelectionRange(p,p)};
     $$('[data-lf]').forEach(b=>b.onclick=()=>{lk.f=b.dataset.lf;draw()});
     $('#pub')&&($('#pub').onclick=e=>publishAll(P,true,e.target));$('#pubnew')&&($('#pubnew').onclick=e=>publishAll(P,false,e.target));
@@ -428,17 +428,17 @@ function publishCard(P){const has=inShop(P);const todo=items.filter(i=>!has(i));
   const cl=todo.map(i=>SNCatalog.classify(i.name));const hid=cl.filter(c=>c.hide).length;
   return `<div class="card" style="border:2px solid var(--gold)"><h2 style="margin-top:0">أصناف ترست على المتجر</h2>
   <div class="kpis"><div class="kpi"><b>${fromTrust.toLocaleString('en')}</b><span>صنف ترست على المتجر</span></div><div class="kpi ${todo.length?'warn':''}"><b>${todo.length.toLocaleString('en')}</b><span>صنف مش على المتجر بعد</span></div>${other?`<div class="kpi"><b>${other}</b><span>منتج قديم (مش من ترست)</span></div>`:''}</div>
-  ${fromTrust===0?`<p class="note" style="margin-top:0">رح يتحول كل صنف بترست لمنتج بالمتجر: بالاسم والسعر من ترست، والكمية من نظام المخزون (الأصناف اللي كميتها صفر بتظهر «نفدت الكمية»)، وبينصنّف تلقائياً حسب اسمه على أقسام المتجر. <b>${hid}</b> صنف رح ينضاف <b>مخفي</b>: أجور الطباعة والكلاشيهات، والمطبوعات الخاصة بزبائن معينين، والأسماء الناقصة مثل «علبة». بتقدري تظهريهم من لوحة المتجر.</p>
+  ${fromTrust===0?`<p class="note" style="margin-top:0">رح يتحول كل صنف بترست لمنتج بالمتجر: بالاسم والسعر من ترست، والكمية من نظام المخزون (الأصناف اللي كميتها صفر بتظهر «نفدت الكمية»)، وبينصنّف تلقائياً حسب اسمه على أقسام المتجر. <b>${hid}</b> صنف رح ينضاف <b>مخفي</b>: أجور الطباعة والكلاشيهات، والمطبوعات الخاصة بزبائن معينين، والأسماء الناقصة مثل «علبة». بتقدر تظهرهم من لوحة المتجر.</p>
    ${other?`<div class="warnbox">المنتجات القديمة (${other}) رح تنشال من المتجر وتنحفظ نسخة منها بقاعدة البيانات (products_backup). صور الأقسام القديمة بتضل.</div>`:''}
    <button class="btn gold" id="pub" style="width:100%">نشر ${items.length.toLocaleString('en')} صنف على المتجر${other?' واستبدال المنتجات القديمة':''}</button>`
-  :todo.length?`<p class="note" style="margin-top:0">أصناف جديدة من ترست مش على المتجر. بتنضاف لحالها بعد كل استيراد يومي، أو أضيفيها هلأ.</p><button class="btn gold" id="pubnew">إضافة ${todo.length} صنف للمتجر</button>`:'<p class="okbox" style="margin:0">كل أصناف ترست موجودة على المتجر ✓</p>'}</div>`}
-async function publishAll(P,replace,btn,quiet){const has=inShop(P);let todo=items.filter(i=>!has(i));if(replace&&btn&&btn.dataset.sure!=='1'){btn.dataset.sure='1';btn.textContent='متأكدة؟ اضغطي مرة ثانية للنشر';btn.classList.add('bad');return}
+  :todo.length?`<p class="note" style="margin-top:0">أصناف جديدة من ترست مش على المتجر. بتنضاف لحالها بعد كل استيراد يومي، أو أضفها هلأ.</p><button class="btn gold" id="pubnew">إضافة ${todo.length} صنف للمتجر</button>`:'<p class="okbox" style="margin:0">كل أصناف ترست موجودة على المتجر ✓</p>'}</div>`}
+async function publishAll(P,replace,btn,quiet){const has=inShop(P);let todo=items.filter(i=>!has(i));if(replace&&btn&&btn.dataset.sure!=='1'){btn.dataset.sure='1';btn.textContent='متأكد؟ اضغط مرة ثانية للنشر';btn.classList.add('bad');return}
   if(!todo.length)return;const all=[...todo].sort((a,b)=>{const A=SNCatalog.classify(a.name),Bc=SNCatalog.classify(b.name);return SNCatalog.ORDER.indexOf(A.cat)-SNCatalog.ORDER.indexOf(Bc.cat)||A.sub.localeCompare(Bc.sub,'ar')||a.name.localeCompare(b.name,'ar')});
   const base=P.length?Math.max(...P.map(p=>+p.sort||0))+1:0;const rows=all.map((i,k)=>productFor(i,(replace?0:base)+k));
   const st=await sb.from('settings').select('data').eq('id',1).maybeSingle();const oldCats=st.data&&st.data.data.categories;
   const keep=replace?[]:P.filter(p=>/^t/.test(p.id));const cats=catsFor([...keep,...rows],P,oldCats);
   let done=0;for(let k=0;k<rows.length;k+=500){if(btn)btn.textContent='جاري النشر… '+Math.round(100*k/rows.length)+'%';
-    const r=await sb.rpc('inv_publish',{rows:rows.slice(k,k+500),replace:replace&&k===0,cats:k+500>=rows.length?cats:null});if(r.error){if(btn){btn.disabled=false;btn.textContent='حاولي مرة ثانية'}toast(emsg(r.error),4000);return false}done+=r.data.added}
+    const r=await sb.rpc('inv_publish',{rows:rows.slice(k,k+500),replace:replace&&k===0,cats:k+500>=rows.length?cats:null});if(r.error){if(btn){btn.disabled=false;btn.textContent='حاول مرة ثانية'}toast(emsg(r.error),4000);return false}done+=r.data.added}
   if(!quiet){toast('تم نشر '+done.toLocaleString('en')+' صنف على المتجر ✓',3500);PANES.link()}return done}
 
 /* ---------- reports ---------- */
@@ -460,23 +460,23 @@ PANES.reports=async()=>{
     ${R.counts.length?`<div class="card"><h3 style="margin-top:0">أكبر فروقات الجرد</h3><table><thead><tr><th>الصنف</th><th class="n">الفرق</th><th class="n">بعد الجرد</th><th>بواسطة</th></tr></thead><tbody>${R.counts.map(x=>`<tr><td>${esc(x.name)}</td><td class="n ${+x.delta<0?'neg':''}">${+x.delta>0?'+':''}${fq(x.delta)}</td><td class="n">${fq(x.qty_after)}</td><td class="note">${esc(x.by_name||'')}</td></tr>`).join('')}</tbody></table></div>`:''}`}
   else if(v==='moves'){const r=await sb.from('inv_moves').select('id,item_id,delta,kind,channel,ref,note,qty_after,by_name,created_at,voided').gte('created_at',a.toISOString()).lt('created_at',b.toISOString()).order('created_at',{ascending:false}).limit(500);if(!$('#rr'))return;if(r.error)return $('#rr').textContent=emsg(r.error);
     let kf=rp.kf||'';const draw=()=>{const L=r.data.filter(m=>!kf||m.kind===kf);$('#rr').innerHTML=`<div class="row sp"><select id="rk" style="max-width:240px"><option value="">كل الحركات</option>${Object.entries(KIND).map(([k,n])=>`<option value="${k}" ${kf===k?'selected':''}>${n}</option>`).join('')}</select>${isOwner()?'<button class="btn sm alt" id="rx">تصدير Excel</button>':''}</div>
-      <table class="stack" style="margin-top:10px"><thead><tr><th>التاريخ</th><th>الصنف</th><th>الحركة</th><th class="n">الكمية</th><th class="hide-m">بواسطة</th></tr></thead><tbody>${L.map(m=>`<tr class="click" data-it="${m.item_id}" style="${m.voided?'opacity:.5;text-decoration:line-through':''}"><td class="note">${fd(m.created_at)}</td><td>${esc(byId.get(m.item_id)?.name||m.item_id)}</td><td>${tag(m.kind)}${m.ref?` <span class="note">${esc(m.ref)}</span>`:''}</td><td class="n ${+m.delta<0?'neg':''}">${+m.delta>0?'+':''}${fq(m.delta)}</td><td class="hide-m note">${esc(m.by_name||'')}</td></tr>`).join('')}</tbody></table>${r.data.length===500?'<p class="note">يظهر آخر 500 حركة – قصّري الفترة.</p>':''}`;
+      <table class="stack" style="margin-top:10px"><thead><tr><th>التاريخ</th><th>الصنف</th><th>الحركة</th><th class="n">الكمية</th><th class="hide-m">بواسطة</th></tr></thead><tbody>${L.map(m=>`<tr class="click" data-it="${m.item_id}" style="${m.voided?'opacity:.5;text-decoration:line-through':''}"><td class="note">${fd(m.created_at)}</td><td>${esc(byId.get(m.item_id)?.name||m.item_id)}</td><td>${tag(m.kind)}${m.ref?` <span class="note">${esc(m.ref)}</span>`:''}</td><td class="n ${+m.delta<0?'neg':''}">${+m.delta>0?'+':''}${fq(m.delta)}</td><td class="hide-m note">${esc(m.by_name||'')}</td></tr>`).join('')}</tbody></table>${r.data.length===500?'<p class="note">يظهر آخر 500 حركة – قصّر الفترة.</p>':''}`;
       $('#rk').onchange=e=>{kf=rp.kf=e.target.value;draw()};
       $('#rx')&&($('#rx').onclick=async()=>{await loadXLSX();const ws=XLSX.utils.json_to_sheet(L.map(m=>({'التاريخ':fd(m.created_at),'الصنف':byId.get(m.item_id)?.name||'','الباركود':byId.get(m.item_id)?.barcode||'','الحركة':KIND[m.kind],'القناة':CH[m.channel]||m.channel||'','المرجع':m.ref||'','الكمية':+m.delta,'الرصيد بعدها':+m.qty_after,'بواسطة':m.by_name||'','ملاحظة':m.note||'','ملغاة':m.voided?'نعم':''})));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'الحركات');XLSX.writeFile(wb,'sn-moves-'+new Date().toISOString().slice(0,10)+'.xlsx')})};draw()}
   else if(v==='dead'){const r=await sb.rpc('inv_dead',{days:90});if(!$('#rr'))return;if(r.error)return $('#rr').textContent=emsg(r.error);const L=r.data;const tv=L.reduce((s,x)=>s+(+x.value||0),0);
     $('#rr').innerHTML=`<p class="note">أصناف عليها رصيد وما انباع منها شي آخر 90 يوم (من وقت ما بدأ النظام يسجّل). القيمة الكلية: <b>${fm(tv)}</b>. ممكن تكون عروض، أو أخطاء رصيد تحتاج جرد.</p><table class="stack"><thead><tr><th>الصنف</th><th class="n">الرصيد</th><th class="n">القيمة</th><th class="hide-m">آخر بيع</th></tr></thead><tbody>${L.map(x=>`<tr class="click" data-it="${x.id}"><td>${esc(x.name)}</td><td class="n">${fq(x.qty)}</td><td class="n">${fm(x.value)}</td><td class="hide-m note">${x.last_sale?fday(x.last_sale):'—'}</td></tr>`).join('')}</tbody></table>`}
   else{const L=items.filter(i=>i.trust_qty!=null&&Math.abs(i.trust_qty-i.qty)>=1).map(i=>({i,d:i.qty-i.trust_qty})).sort((a,b)=>Math.abs(b.d*(b.i.price||0))-Math.abs(a.d*(a.i.price||0)));
-    $('#rr').innerHTML=`<p class="note">الفرق بين رصيد النظام ورصيد ترست. طبيعي يكون في فرق بسبب مبيعات الموقع والسوشال والجرد اللي ما بتنزل على ترست – استخدميه لتصحيح ترست أو لتحديد شو لازم ينجرد.</p><p><b>${L.length}</b> صنف فيه فرق.</p><table class="stack"><thead><tr><th>الصنف</th><th class="n">النظام</th><th class="n">ترست</th><th class="n">الفرق</th></tr></thead><tbody>${L.slice(0,300).map(x=>`<tr class="click" data-it="${x.i.id}"><td>${esc(x.i.name)}</td><td class="n">${fq(x.i.qty)}</td><td class="n">${fq(x.i.trust_qty)}</td><td class="n ${x.d<0?'neg':''}">${x.d>0?'+':''}${fq(x.d)}</td></tr>`).join('')}</tbody></table>`}
+    $('#rr').innerHTML=`<p class="note">الفرق بين رصيد النظام ورصيد ترست. طبيعي يكون في فرق بسبب مبيعات الموقع والسوشال والجرد اللي ما بتنزل على ترست – استخدمه لتصحيح ترست أو لتحديد شو لازم ينجرد.</p><p><b>${L.length}</b> صنف فيه فرق.</p><table class="stack"><thead><tr><th>الصنف</th><th class="n">النظام</th><th class="n">ترست</th><th class="n">الفرق</th></tr></thead><tbody>${L.slice(0,300).map(x=>`<tr class="click" data-it="${x.i.id}"><td>${esc(x.i.name)}</td><td class="n">${fq(x.i.qty)}</td><td class="n">${fq(x.i.trust_qty)}</td><td class="n ${x.d<0?'neg':''}">${x.d>0?'+':''}${fq(x.d)}</td></tr>`).join('')}</tbody></table>`}
   $('#rr').onclick=e=>{const r=e.target.closest('[data-it]');if(r)itemCard(+r.dataset.it)}};
 
 /* ---------- users ---------- */
 PANES.users=async()=>{
-  $('#app').innerHTML=`<h2>المستخدمين</h2><div class="card"><p class="note" style="margin-top:0"><b>الموظف</b> بيقدر يسجّل بيع واستلام ومرتجع وجرد، وما بيقدر يعمل تسوية أو يلغي حركة أو يستورد من ترست أو يربط المتجر. <b>صاحبة الحساب</b> بتقدر كل شي.</p>
-  <p class="note">لإضافة موظف: أولاً أنشئي له حساب دخول من <b>Supabase ← Authentication ← Users ← Add user</b> (إيميل وكلمة سر)، بعدين أضيفي الإيميل هون.</p>
-  <form id="uf" class="row" style="align-items:flex-end"><div style="flex:2 1 220px"><label for="ue">الإيميل</label><input id="ue" type="email" dir="ltr" required></div><div style="flex:1 1 140px"><label for="un">الاسم</label><input id="un" type="text"></div><div style="flex:1 1 140px"><label for="ur">الصلاحية</label><select id="ur"><option value="staff">موظف</option><option value="owner">صاحبة الحساب</option></select></div><button class="btn">إضافة / تعديل</button></form></div><div id="ul" class="note">…</div>`;
+  $('#app').innerHTML=`<h2>المستخدمين</h2><div class="card"><p class="note" style="margin-top:0"><b>الموظف</b> بيقدر يسجّل بيع واستلام ومرتجع وجرد، وما بيقدر يعمل تسوية أو يلغي حركة أو يستورد من ترست أو يربط المتجر. <b>صاحب الحساب</b> بتقدر كل شي.</p>
+  <p class="note">لإضافة موظف: أولاً أنشئ له حساب دخول من <b>Supabase ← Authentication ← Users ← Add user</b> (إيميل وكلمة سر)، بعدين أضف الإيميل هون.</p>
+  <form id="uf" class="row" style="align-items:flex-end"><div style="flex:2 1 220px"><label for="ue">الإيميل</label><input id="ue" type="email" dir="ltr" required></div><div style="flex:1 1 140px"><label for="un">الاسم</label><input id="un" type="text"></div><div style="flex:1 1 140px"><label for="ur">الصلاحية</label><select id="ur"><option value="staff">موظف</option><option value="owner">صاحب الحساب</option></select></div><button class="btn">إضافة / تعديل</button></form></div><div id="ul" class="note">…</div>`;
   const load=async()=>{const r=await sb.rpc('inv_user_list');if(r.error)return $('#ul').textContent=emsg(r.error);
-    $('#ul').innerHTML=`<table class="stack"><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th></th></tr></thead><tbody>${r.data.map(u=>`<tr><td>${esc(u.name||'')}</td><td dir="ltr" style="text-align:end">${esc(u.email)}</td><td>${u.role==='owner'?'صاحبة الحساب':'موظف'}</td><td>${u.email!==me.email?`<button class="btn sm alt" data-ux="${esc(u.email)}">إزالة</button>`:''}</td></tr>`).join('')}</tbody></table>`;
-    $$('[data-ux]').forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكدة؟';b.classList.add('bad');return}const r=await sb.rpc('inv_set_user',{email:b.dataset.ux,role:'none'});if(r.error)return toast(emsg(r.error));toast('تمت الإزالة');load()})};
+    $('#ul').innerHTML=`<table class="stack"><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحية</th><th></th></tr></thead><tbody>${r.data.map(u=>`<tr><td>${esc(u.name||'')}</td><td dir="ltr" style="text-align:end">${esc(u.email)}</td><td>${u.role==='owner'?'صاحب الحساب':'موظف'}</td><td>${u.email!==me.email?`<button class="btn sm alt" data-ux="${esc(u.email)}">إزالة</button>`:''}</td></tr>`).join('')}</tbody></table>`;
+    $$('[data-ux]').forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكد؟';b.classList.add('bad');return}const r=await sb.rpc('inv_set_user',{email:b.dataset.ux,role:'none'});if(r.error)return toast(emsg(r.error));toast('تمت الإزالة');load()})};
   $('#uf').onsubmit=async e=>{e.preventDefault();const r=await sb.rpc('inv_set_user',{email:$('#ue').value.trim(),role:$('#ur').value,name:$('#un').value.trim()||null});if(r.error)return toast(emsg(r.error),4000);toast('تم الحفظ');e.target.reset();load()};
   load()};
 

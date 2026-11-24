@@ -226,7 +226,7 @@ const fail=(m,e)=>{console.error(e);toast(m)};
 async function loadShop(){
   if(!sb){$('#app').innerHTML='<div class="empty">الموقع غير مربوط بقاعدة البيانات بعد (config.js).</div>';return false}
   const [s,p]=await Promise.all([sb.from('settings').select('data').eq('id',1).maybeSingle(),allProducts()]);
-  if(s.error||p.error){$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاولي مرة ثانية.</div>';console.error(s.error||p.error);return false}
+  if(s.error||p.error){$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاول مرة ثانية.</div>';console.error(s.error||p.error);return false}
   if(s.data)db.settings=s.data.data;db.products=p.data.map(r=>r.data);
   cart=cart.filter(c=>{const x=db.products.find(p=>p.id===c.pid);if(!x||x.ask||!x.visible)return false;
     if(c.label!=null&&(!x.vars[c.vi]||x.vars[c.vi].label!==c.label)){const k=x.vars.findIndex(v=>v.label===c.label);if(k<0)return false;c.vi=k;c.k=x.id+'|'+k}
@@ -238,12 +238,12 @@ async function reloadAllProducts(){const p=await allProducts();if(!p.error){db.p
 /* Save products without undoing stock that changed on the server (online orders) since the panel loaded:
    a quantity the admin did not touch is taken fresh from the server. */
 async function persist(list){if(!list.length)return true;
-  const ids=list.map(p=>p.id),got=[];for(let k=0;k<ids.length;k+=150){const fr=await sb.from('products').select('data').in('id',ids.slice(k,k+150));if(fr.error){fail('ما انحفظ – تأكدي من الاتصال',fr.error);return false}got.push(...fr.data)}
+  const ids=list.map(p=>p.id),got=[];for(let k=0;k<ids.length;k+=150){const fr=await sb.from('products').select('data').in('id',ids.slice(k,k+150));if(fr.error){fail('ما انحفظ – تأكد من الاتصال',fr.error);return false}got.push(...fr.data)}
   const fresh=new Map(got.map(r=>[r.data.id,r.data]));
   list.forEach(p=>{const f=fresh.get(p.id),base=BASE.get(p.id);if(!f||!base)return;p.vars.forEach(v=>{if(!base.has(v.label))return;const b=base.get(v.label),fv=f.vars.find(x=>x.label===v.label);if(!fv)return;
     if((v.stock??null)===b&&(fv.stock??null)!==b)v.stock=fv.stock??null})});
   const r=await sb.from('products').upsert(list.map(p=>({id:p.id,sort:Math.max(0,db.products.indexOf(p)),data:p,updated_at:new Date().toISOString()})));
-  if(r.error){fail('ما انحفظ – تأكدي من الاتصال',r.error);return false}
+  if(r.error){fail('ما انحفظ – تأكد من الاتصال',r.error);return false}
   list.forEach(p=>{const i=db.products.findIndex(x=>x.id===p.id);if(i<0)db.products.unshift(p);else db.products[i]=p});snap(list);return true}
 async function loadOrders(){const r=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(500);if(r.error){fail('تعذّر تحميل الطلبات',r.error);return}db.orders=r.data.map(rowToOrder)}
 async function saveProduct(p){return persist([p])}
@@ -411,7 +411,7 @@ async function placeOrder(items,sub,fee,zone){
   const o={...r.data,...cust};cart=[];keepCart();updCount();
   const txt=`${t('newOrder')} ${o.code}\n${items.map(i=>`• ${pn(i.p)} (${trW(i.v.label)}) × ${i.q}`).join('\n')}\n${t('total')}: ${fmtBoth(o.total)}${intl?' + '+t('ship'):''}\n${t('name')}: ${o.name}\n${t('phone')}: ${o.phone}\n${intl?t('country')+': '+o.country+' – '+o.city+'\n':''}${t('addr')}: ${zn(zone)} – ${o.addr}`;
   $('#cartBody').innerHTML=`<div class="empty" style="color:var(--ink)"><h2 style="margin-top:0">${t('got')}</h2><p>${t('orderNo')} <b>${o.code}</b><br>${t('total')} ${fmtBoth(o.total)} – ${intl?t('shipLater'):t('codShort')}</p><a class="wa" href="${waLink(txt)}" target="_blank" rel="noopener">${t('sendWa')}</a><p class="note">${t('optional')}</p></div>`;
-  if(db.settings.waMode==='auto'){$('#cartBody .note').textContent=en()?'Opening WhatsApp… press Send to complete your order.':'جاري فتح واتساب… اضغطي إرسال لإتمام طلبك.';setTimeout(()=>{location.href=waLink(txt)},1200)}
+  if(db.settings.waMode==='auto'){$('#cartBody .note').textContent=en()?'Opening WhatsApp… press Send to complete your order.':'جاري فتح واتساب… اضغط إرسال لإتمام طلبك.';setTimeout(()=>{location.href=waLink(txt)},1200)}
   loadShop().then(()=>{if(location.hash!=='#admin')renderShop()});
 }
 
@@ -491,7 +491,7 @@ function paneProducts(){
      <td><input type="checkbox" data-vis="${p.id}" ${p.visible?'checked':''} aria-label="ظاهر" style="width:22px;height:22px"></td>
      <td class="n"><button class="btn alt" data-ed="${p.id}" style="min-height:40px;padding:6px 12px">تعديل</button></td></tr>`};
     $('#plist').innerHTML=list.length?groups.map(g=>`<div class="pgroup"><div class="pgh"><label class="row" style="margin:0;color:var(--ink)"><input type="checkbox" data-pall="${esc(g.k)}" ${g.items.every(p=>psel.has(p.id))?'checked':''} style="width:20px;height:20px"><b>${esc(g.k)}</b></label><span class="note">${g.items.length} منتج</span></div>
-      <table class="stack"><thead><tr><th></th><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر</th><th></th></tr></thead><tbody>${g.items.map(row).join('')}</tbody></table></div>`).join('')+(all.length>300?`<p class="note">يظهر أول 300 من ${all.length} – اختاري قسم من القائمة أو ابحثي.</p>`:''):'<div class="empty">ما في منتجات بهالاختيار.</div>';
+      <table class="stack"><thead><tr><th></th><th></th><th>المنتج</th><th>السعر</th><th>المخزون</th><th>ظاهر</th><th></th></tr></thead><tbody>${g.items.map(row).join('')}</tbody></table></div>`).join('')+(all.length>300?`<p class="note">يظهر أول 300 من ${all.length} – اختر قسم من القائمة أو ابحث.</p>`:''):'<div class="empty">ما في منتجات بهالاختيار.</div>';
     const sel=[...psel].filter(id=>P.some(p=>p.id===id));
     $('#bulk').innerHTML=sel.length?`<div class="bulkbar"><b>${sel.length} محدد</b>
       <select id="bmc" aria-label="القسم">${cats.map(c=>`<option>${esc(c.name)}</option>`).join('')}</select><select id="bms" aria-label="القسم الفرعي"></select><button class="btn gold" id="bmove">نقل</button>
@@ -521,18 +521,18 @@ function editProduct(id,pre={}){
   <label for="fn">اسم المنتج</label><input id="fn" type="text" required value="${esc(p.name)}">
   <label for="fc">القسم الرئيسي</label><select id="fc" required>${catList().map(c=>`<option ${c.name===p.cat?'selected':''}>${esc(c.name)}</option>`).join('')}${p.cat&&!catList().some(c=>c.name===p.cat)?`<option selected>${esc(p.cat)}</option>`:''}</select>
   <label for="fsub">القسم الفرعي</label><select id="fsub"><option value="">—</option>${((catList().find(c=>c.name===p.cat)||catList()[0]||{}).subs||[]).map(x=>`<option ${x.name===p.sub?'selected':''}>${esc(x.name)}</option>`).join('')}</select><p class="note" style="margin:4px 0 0">لإضافة قسم جديد: تبويب «الأقسام».</p>
-  <label for="ftags">المناسبات (افصلي بفاصلة: عيد، رمضان، تخرج…)</label><input id="ftags" type="text" value="${esc((p.tags||[]).join('، '))}">
+  <label for="ftags">المناسبات (افصل بفاصلة: عيد، رمضان، تخرج…)</label><input id="ftags" type="text" value="${esc((p.tags||[]).join('، '))}">
   <label for="fd">الوصف</label><textarea id="fd">${esc(p.desc)}</textarea>
   <label for="fne">الاسم بالإنجليزي</label><input id="fne" type="text" dir="ltr" value="${esc(p.name_en||'')}">
   <label for="fde">الوصف بالإنجليزي</label><textarea id="fde" dir="ltr">${esc(p.desc_en||'')}</textarea>
   <label for="fu">الوحدة</label><input id="fu" type="text" value="${esc(p.unit)}">
   <label class="row" style="color:var(--ink)"><input type="checkbox" id="fa" ${p.ask?'checked':''} style="width:20px;height:20px"> السعر عند الطلب (زر واتساب بدل السلة)</label>
   <div class="kpi" style="margin-top:14px;box-shadow:0 0 0 1px var(--line)"><b style="font-size:16px;color:var(--ink)">خيارات المنتج (اختياري)</b>
-  <p class="note" style="margin:4px 0 8px">مثلاً: المقاس، اللون، الشكل. اكتبي القيم مفصولة بفاصلة، ثم اضغطي «توليد التركيبات» لتطلع كل تركيبة بسطر بسعرها وكميتها.</p>
+  <p class="note" style="margin:4px 0 8px">مثلاً: المقاس، اللون، الشكل. اكتب القيم مفصولة بفاصلة، ثم اضغط «توليد التركيبات» لتطلع كل تركيبة بسطر بسعرها وكميتها.</p>
   ${(p.opts||[]).map((o,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr) 44px"><input type="text" data-on="${i}" value="${esc(o.name)}" placeholder="اسم الخيار (اللون)" aria-label="اسم الخيار"><input type="text" dir="ltr" data-one="${i}" value="${esc(o.name_en||'')}" placeholder="English (Colour)" aria-label="English"><input type="text" data-ovs="${i}" value="${esc(o.values.join('، '))}" placeholder="أبيض، أسود، ذهبي" aria-label="القيم"><button type="button" data-ox="${i}" aria-label="حذف الخيار">×</button></div>`).join('')}
   <div class="row">${(p.opts||[]).length<3?'<button type="button" class="btn alt" id="addo" style="min-height:38px;padding:4px 14px">+ خيار</button>':''}${(p.opts||[]).length?'<button type="button" class="btn gold" id="geno" style="min-height:38px;padding:4px 14px">توليد التركيبات</button>':''}</div></div>
   <label>${(p.opts||[]).length?'التركيبات':'الأحجام / الأنواع'} – صورة (اختياري) | الاسم | الرمز | السعر بالدينار | الكمية (فاضي = غير محدود)</label>
-  <div class="row" style="margin-bottom:6px"><input type="number" step="0.005" min="0" id="allp" placeholder="سعر موحّد" dir="ltr" style="max-width:150px" aria-label="سعر موحد"><button type="button" class="btn alt" id="setallp" style="min-height:40px;padding:4px 12px">طبّقي السعر على الكل</button></div><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="text" data-vk="${i}" value="${esc(v.sku||'')}" placeholder="الرمز / الباركود" aria-label="الرمز" dir="ltr"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
+  <div class="row" style="margin-bottom:6px"><input type="number" step="0.005" min="0" id="allp" placeholder="سعر موحّد" dir="ltr" style="max-width:150px" aria-label="سعر موحد"><button type="button" class="btn alt" id="setallp" style="min-height:40px;padding:4px 12px">طبّق السعر على الكل</button></div><div id="vars">${p.vars.map((v,i)=>`<div class="vrow" style="grid-template-columns:44px minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 44px;align-items:center"><label class="mini" style="margin:0;cursor:pointer;width:44px;height:44px" title="صورة هذا الحجم/الشكل">${v.img?`<img src="${v.img}" alt="">`:'<span style="font-size:20px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-vimg="${i}" hidden></label><input type="text" data-vl="${i}" value="${esc(v.label)}" aria-label="الاسم"><input type="text" data-vk="${i}" value="${esc(v.sku||'')}" placeholder="الرمز / الباركود" aria-label="الرمز" dir="ltr"><input type="number" step="0.005" min="0" data-vp="${i}" value="${v.price}" aria-label="السعر" dir="ltr"><input type="number" min="0" data-vs="${i}" value="${v.stock??''}" aria-label="الكمية" dir="ltr"><button type="button" data-vx="${i}" aria-label="حذف" ${p.vars.length<2?'disabled':''}>×</button></div>`).join('')}</div>
   <button type="button" class="btn alt" id="addv">+ حجم آخر</button>
   <div class="row" style="justify-content:space-between;margin-top:18px">${id?(confirmDel?`<span class="row"><span class="oos">متأكد؟</span><button type="button" class="btn danger" id="del2">احذف نهائياً</button><button type="button" class="btn alt" id="del0">لا</button></span>`:'<button type="button" class="btn alt" id="del" style="color:var(--bad)">حذف المنتج</button>'):'<span></span>'}<button class="btn">حفظ</button></div></form>${id?`<details style="margin-top:16px" id="phd"><summary style="cursor:pointer;font-weight:600">سجل التغييرات</summary><div id="phl" class="note">…</div></details>`:''}`;
   $('#phd')&&($('#phd').ontoggle=()=>{if($('#phd').open)loadHist(id,$('#phl'))});
@@ -543,8 +543,8 @@ function editProduct(id,pre={}){
   $('#fc').onchange=()=>{sync();p.sub='';draw()};
   $('#addo')&&($('#addo').onclick=()=>{sync();(p.opts=p.opts||[]).push({name:'',name_en:'',values:[]});draw()});
   document.querySelectorAll('[data-ox]').forEach(b=>b.onclick=()=>{sync();p.opts.splice(+b.dataset.ox,1);if(!p.opts.length){delete p.opts;p.vars.forEach(v=>delete v.o)}draw()});
-  $('#geno')&&($('#geno').onclick=()=>{sync();const O=p.opts.filter(o=>o.name&&o.values.length);if(!O.length)return toast('اكتبي اسم الخيار وقيمه أولاً');p.opts=O;
-    let combos=[[]];O.forEach(o=>{combos=combos.flatMap(c=>o.values.map(v=>[...c,v]))});if(combos.length>200)return toast('تركيبات كثيرة ('+combos.length+') – قلّلي القيم');
+  $('#geno')&&($('#geno').onclick=()=>{sync();const O=p.opts.filter(o=>o.name&&o.values.length);if(!O.length)return toast('اكتب اسم الخيار وقيمه أولاً');p.opts=O;
+    let combos=[[]];O.forEach(o=>{combos=combos.flatMap(c=>o.values.map(v=>[...c,v]))});if(combos.length>200)return toast('تركيبات كثيرة ('+combos.length+') – قلّل القيم');
     const old=p.vars;const base=old[0]||{price:0,stock:null};
     p.vars=combos.map(c=>{const same=old.find(v=>v.o&&v.o.join('|')===c.join('|'))||old.find(v=>v.label===c.join(' / '));return{...(same||{price:base.price,stock:null}),o:c,label:c.join(' / ')}});
     toast('تم توليد '+p.vars.length+' تركيبة');draw()});
@@ -556,16 +556,16 @@ function editProduct(id,pre={}){
   $('#del')&&($('#del').onclick=()=>{sync();confirmDel=true;draw()});$('#del0')&&($('#del0').onclick=()=>{sync();confirmDel=false;draw()});
   $('#del2')&&($('#del2').onclick=async()=>{const r=await sb.from('products').delete().eq('id',id);if(r.error)return fail('ما انحذف المنتج',r.error);db.products=db.products.filter(x=>x.id!==id);close();renderAdmin();toast('تم حذف المنتج')});
   $('#pf').onsubmit=async e=>{e.preventDefault();sync();
-    if(!p.ask&&p.vars.some(v=>!(+v.price>0))){toast('في حجم سعره صفر – اكتبي السعر أو فعّلي «السعر عند الطلب»');const z=p.vars.findIndex(v=>!(+v.price>0));$(`[data-vp="${z}"]`)?.focus();return}
+    if(!p.ask&&p.vars.some(v=>!(+v.price>0))){toast('في حجم سعره صفر – اكتب السعر أو فعّل «السعر عند الطلب»');const z=p.vars.findIndex(v=>!(+v.price>0));$(`[data-vp="${z}"]`)?.focus();return}
     if(p.vars.some(v=>!String(v.label).trim())){toast('في حجم بدون اسم');return}
-    if(new Set(p.vars.map(v=>v.label.trim())).size!==p.vars.length){toast('في حجمين بنفس الاسم – غيّري واحد منهم');return}const btn=e.submitter||$('#pf button:last-child');btn.disabled=true;btn.textContent='جاري الحفظ…';await uploadProductImgs(p);const i=db.products.findIndex(x=>x.id===p.id);i<0?db.products.unshift(p):db.products[i]=p;if(await saveProduct(p)){close();renderAdmin();toast('تم الحفظ')}else{btn.disabled=false;btn.textContent='حفظ'}};};
+    if(new Set(p.vars.map(v=>v.label.trim())).size!==p.vars.length){toast('في حجمين بنفس الاسم – غيّر واحد منهم');return}const btn=e.submitter||$('#pf button:last-child');btn.disabled=true;btn.textContent='جاري الحفظ…';await uploadProductImgs(p);const i=db.products.findIndex(x=>x.id===p.id);i<0?db.products.unshift(p):db.products[i]=p;if(await saveProduct(p)){close();renderAdmin();toast('تم الحفظ')}else{btn.disabled=false;btn.textContent='حفظ'}};};
   draw();show('#modal');
 }
 const shrink=(f,max,cb)=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),k=Math.min(1,max/Math.max(im.width,im.height));c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(im.src);cb(c.toDataURL('image/jpeg',.82))};im.src=URL.createObjectURL(f)};
 function paneFront(){
   const b=JSON.parse(JSON.stringify(B()));const D=DEFAULT.settings.banner;const names=['الصورة العريضة (فوق)','الصورة 2 (تحت)','الصورة 3 (تحت)'];
   const draw=()=>{$('#pane').innerHTML=`<form id="ff" style="max-width:760px">
-  <p class="note" style="margin-top:0">هذا اللي بيشوفه الزبون أول ما يفتح المتجر. عدّلي واضغطي حفظ.</p>
+  <p class="note" style="margin-top:0">هذا اللي بيشوفه الزبون أول ما يفتح المتجر. عدّل واضغط حفظ.</p>
   <label for="bt">العنوان الرئيسي</label><input id="bt" type="text" value="${esc(b.title)}">
   <label for="bs">النص تحت العنوان</label><textarea id="bs">${esc(b.sub)}</textarea>
   <label for="bte">العنوان بالإنجليزي</label><input id="bte" type="text" dir="ltr" value="${esc(b.title_en||'')}">
@@ -596,7 +596,7 @@ function paneStock(){
   const R=vrows();const tracked=R.filter(r=>r.v.stock!=null);
   const F={nosku:['بدون رمز',r=>!r.v.sku],out:['نفدت',r=>r.v.stock!=null&&r.v.stock<=0],low:['قليلة (أقل من 10)',r=>r.v.stock!=null&&r.v.stock>0&&r.v.stock<10],unl:['غير محدودة',r=>r.v.stock==null]};
   $('#pane').innerHTML=`<div class="demo">الأحجام المربوطة بأصناف ترست كميتها بتيجي من <a href="/stock/" target="_blank" rel="noopener">نظام المخزون</a> وما بتتعدّل من هون.</div><div class="kpis"><div class="kpi"><b>${tracked.length}</b><span>أصناف كميتها متابَعة من أصل ${R.length}</span></div><div class="kpi"><b>${R.filter(F.out[1]).length}</b><span>نفدت</span></div><div class="kpi"><b>${R.filter(F.low[1]).length}</b><span>كمية قليلة</span></div><div class="kpi"><b>${R.filter(F.nosku[1]).length}</b><span>بدون رمز/باركود</span></div></div>
-  <div class="toolbar"><input id="sq" type="text" placeholder="ابحثي بالاسم أو امسحي الباركود" value="${esc(sf.q)}" style="max-width:340px" autocomplete="off"><div class="row"><button class="btn gold" id="simp">استيراد من الكاشير (Excel/CSV)</button><button class="btn alt" id="sexp">تصدير Excel</button></div></div>
+  <div class="toolbar"><input id="sq" type="text" placeholder="ابحث بالاسم أو امسح الباركود" value="${esc(sf.q)}" style="max-width:340px" autocomplete="off"><div class="row"><button class="btn gold" id="simp">استيراد من الكاشير (Excel/CSV)</button><button class="btn alt" id="sexp">تصدير Excel</button></div></div>
   <div class="occ" style="margin-bottom:10px">${Object.entries(F).map(([k,[n,f]])=>`<button class="ochip ${sf.f===k?'on':''}" data-sfl="${k}">${n} <b>${R.filter(f).length}</b></button>`).join('')}</div>
   <div id="ssave"></div><div id="slist"></div>`;
   const draw=()=>{const q=norm(sf.q.trim());let L=R.filter(r=>(!sf.f||F[sf.f][1](r))&&(!q||norm(r.p.name+' '+(r.p.name_en||'')+' '+r.v.label+' '+(r.v.sku||'')).includes(q)));
@@ -604,7 +604,7 @@ function paneStock(){
     $('#slist').innerHTML=L.length?`<table class="stack"><thead><tr><th></th><th>المنتج</th><th>الحجم / اللون</th><th>الرمز / الباركود</th><th>الكمية</th></tr></thead><tbody>${L.map(r=>{const d=sdirty.get(r.key)||{};const sk=d.sku!==undefined?d.sku:(r.v.sku||'');const st=d.stock!==undefined?d.stock:r.v.stock;
       return `<tr data-row="${r.key}"><td><div class="mini">${r.v.img?`<img src="${r.v.img}" alt="">`:pic(r.p)}</div></td><td><b>${esc(r.p.name)}</b><div class="note">${esc(r.p.sub||r.p.cat||'')}</div></td><td>${esc(r.v.label)}</td>
       <td><input type="text" dir="ltr" data-ssku="${r.key}" value="${esc(sk)}" placeholder="—" style="max-width:170px" aria-label="الرمز"></td>
-      <td class="n"><div class="qty" style="border-radius:12px"><button type="button" data-sd="${r.key}" data-n="-1" aria-label="أقل">−</button><input type="number" min="0" data-sst="${r.key}" value="${st??''}" placeholder="∞" dir="ltr" style="width:80px;border:0;text-align:center;min-height:40px" aria-label="الكمية"><button type="button" data-sd="${r.key}" data-n="1" aria-label="أكثر">+</button></div></td></tr>`}).join('')}</tbody></table>${more?'<p class="note">يظهر أول 250 – استخدمي البحث أو الفلاتر.</p>':''}`:'<div class="empty">ما في أصناف بهالاختيار.</div>';
+      <td class="n"><div class="qty" style="border-radius:12px"><button type="button" data-sd="${r.key}" data-n="-1" aria-label="أقل">−</button><input type="number" min="0" data-sst="${r.key}" value="${st??''}" placeholder="∞" dir="ltr" style="width:80px;border:0;text-align:center;min-height:40px" aria-label="الكمية"><button type="button" data-sd="${r.key}" data-n="1" aria-label="أكثر">+</button></div></td></tr>`}).join('')}</tbody></table>${more?'<p class="note">يظهر أول 250 – استخدم البحث أو الفلاتر.</p>':''}`:'<div class="empty">ما في أصناف بهالاختيار.</div>';
     $('#ssave').innerHTML=sdirty.size?`<div class="bulkbar"><b>${sdirty.size} تعديل غير محفوظ</b><button class="btn gold" id="sgo">حفظ التغييرات</button><button class="btn alt" id="sundo">تراجع</button></div>`:'';
     const mark=(key,k,val)=>{const d=sdirty.get(key)||{};d[k]=val;sdirty.set(key,d);drawBar()};
     document.querySelectorAll('[data-ssku]').forEach(x=>x.oninput=()=>mark(x.dataset.ssku,'sku',x.value.trim()));
@@ -641,7 +641,7 @@ async function importStock(){
       if(ch.sku!==undefined||ch.stock!==undefined||ch.price!==undefined)plan.push(ch)})}
     const colSel=(id,label,val)=>`<label for="${id}">${label}</label><select id="${id}"><option value="">—</option>${cols.map(c=>`<option ${c===val?'selected':''}>${esc(c)}</option>`).join('')}</select>`;
     $('#modal').innerHTML=`<div class="dh"><h2>استيراد المخزون من الكاشير</h2><button class="x" data-close aria-label="إغلاق">×</button></div><div class="db">
-    <p class="note" style="margin-top:0">صدّري قائمة الأصناف من نظام الكاشير كملف Excel أو CSV فيه رمز/باركود الصنف والكمية، وارفعيه هون. الربط يتم بالرمز.</p>
+    <p class="note" style="margin-top:0">صدّر قائمة الأصناف من نظام الكاشير كملف Excel أو CSV فيه رمز/باركود الصنف والكمية، وارفعه هون. الربط يتم بالرمز.</p>
     <input type="file" id="ifile" accept=".xlsx,.xls,.csv">
     ${cols.length?`<p class="note">${rows.length} سطر بالملف.</p>
       ${colSel('mcode','عمود الرمز / الباركود',map.code)}${colSel('mqty','عمود الكمية',map.qty)}${colSel('mprice','عمود السعر (اختياري)',map.price)}${cols.includes('المعرف')?colSel('mkey','عمود المعرف (من ملف التصدير)',map.key):''}
@@ -649,7 +649,7 @@ async function importStock(){
       <label class="row" style="color:var(--ink)"><input type="checkbox" id="op" ${opt.price?'checked':''} style="width:20px;height:20px"> تحديث الأسعار كمان</label>
       <div class="kpis" style="margin-top:12px"><div class="kpi"><b>${plan.length}</b><span>صنف رح يتعدّل</span></div><div class="kpi"><b>${unmatched.length}</b><span>رمز مش موجود بالمتجر</span></div></div>
       ${plan.length?`<table><thead><tr><th>الصنف</th><th>التغيير</th></tr></thead><tbody>${plan.slice(0,40).map(c=>`<tr><td>${esc(c.r.p.name)}<div class="note">${esc(c.r.v.label)}</div></td><td class="note">${c.sku!==undefined?`رمز: ${esc(c.sku)}<br>`:''}${c.stock!==undefined?`كمية: ${c.r.v.stock??'∞'} ← <b>${c.stock}</b><br>`:''}${c.price!==undefined?`سعر: ${fmt(+c.r.v.price)} ← <b>${fmt(c.price)}</b>`:''}</td></tr>`).join('')}</tbody></table>${plan.length>40?`<p class="note">و${plan.length-40} غيرهم…</p>`:''}`:''}
-      ${unmatched.length?`<details style="margin-top:10px"><summary class="note">رموز من الملف مش مربوطة بأي منتج (${unmatched.length})</summary><p class="note" dir="ltr">${unmatched.slice(0,200).map(esc).join(', ')}</p><p class="note">أضيفي هالرموز للمنتجات من تبويب المخزون أو من تعديل المنتج، أو تجاهليها إذا ما بتبيعيها أونلاين.</p></details>`:''}
+      ${unmatched.length?`<details style="margin-top:10px"><summary class="note">رموز من الملف مش مربوطة بأي منتج (${unmatched.length})</summary><p class="note" dir="ltr">${unmatched.slice(0,200).map(esc).join(', ')}</p><p class="note">أضف هالرموز للمنتجات من تبويب المخزون أو من تعديل المنتج، أو تجاهلها إذا ما بتبيعها أونلاين.</p></details>`:''}
       <button class="btn gold" id="igo" style="width:100%;margin-top:14px" ${plan.length?'':'disabled'}>تطبيق ${plan.length} تعديل</button>`:''}
     </div>`;
     $('#ifile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const wb=XLSX.read(await f.arrayBuffer(),{raw:/\.csv$/i.test(f.name)});const ws=wb.Sheets[wb.SheetNames[0]];rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true}).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[String(k).trim(),typeof v==='number'&&Number.isInteger(v)?v.toFixed(0):latin(v).trim()])));cols=rows.length?Object.keys(rows[0]):[];
@@ -667,7 +667,7 @@ async function importStock(){
 function paneCats(){
   const L=JSON.parse(JSON.stringify(catList())).map(c=>({...c,orig:c.name,subs:(c.subs||[]).map(x=>({...x,orig:x.name}))}));let askDel=-1;
   const cnt=(c,sname)=>db.products.filter(p=>p.cat===c&&(sname==null||p.sub===sname)).length;
-  const draw=()=>{$('#pane').innerHTML=`<p class="note" style="margin-top:0">رتّبي الأقسام بالأسهم، وعدّلي الأسماء بالعربي والإنجليزي. تغيير اسم قسم ينقل منتجاته معه تلقائياً. لا يمكن حذف قسم فيه منتجات – انقليها أولاً.</p>
+  const draw=()=>{$('#pane').innerHTML=`<p class="note" style="margin-top:0">رتّب الأقسام بالأسهم، وعدّل الأسماء بالعربي والإنجليزي. تغيير اسم قسم ينقل منتجاته معه تلقائياً. لا يمكن حذف قسم فيه منتجات – انقلها أولاً.</p>
   <div id="cl2">${L.map((c,i)=>`<div class="kpi" style="margin-bottom:12px"><div class="row" style="align-items:flex-start">
    <label class="mini" style="margin:0;cursor:pointer;width:64px;height:64px" title="صورة القسم (اختياري)">${c.img?`<img src="${c.img}" alt="">`:'<span style="font-size:22px;color:var(--mute)">+</span>'}<input type="file" accept="image/*" data-ci="${i}" hidden></label>
    <div style="flex:1;min-width:200px"><div class="vrow" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);margin:0"><input type="text" data-cn="${i}" value="${esc(c.name)}" aria-label="اسم القسم" placeholder="اسم القسم"><input type="text" dir="ltr" data-ce="${i}" value="${esc(c.name_en||'')}" aria-label="English" placeholder="English name"></div>
@@ -707,14 +707,14 @@ const hAct={added:'إضافة',changed:'تعديل',removed:'حذف'};
 function histRows(rows,withName){return rows.length?`<table><thead><tr><th>الوقت</th>${withName?'<th>المنتج</th>':''}<th>التغيير</th><th>بواسطة</th></tr></thead><tbody>${rows.map(h=>`<tr><td class="note" style="white-space:nowrap">${new Date(h.created_at).toLocaleString('ar-JO',{dateStyle:'short',timeStyle:'short'})}</td>${withName?`<td>${db.products.some(p=>p.id===h.product_id)?`<button type="button" class="linkish" data-ed="${esc(h.product_id)}">${esc(h.product_name||h.product_id)}</button>`:esc(h.product_name||h.product_id)}</td>`:''}<td><span class="badge">${hAct[h.action]}</span>${(h.changes||[]).map(hLine).join('')}${h.action==='removed'&&!db.products.some(p=>p.id===h.product_id)&&h.changes[0]&&h.changes[0].old?` <button type="button" class="btn alt" data-restore="${h.id}" style="min-height:34px;padding:2px 12px">استرجاع</button>`:''}</td><td class="note">${esc(h.by_name||'')}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">ما في تغييرات مسجّلة.</div>'}
 let HROWS=[];
 async function loadHist(pid,host){const r=await sb.from('products_history').select('id,product_id,product_name,action,changes,by_name,created_at').eq('product_id',pid).order('created_at',{ascending:false}).limit(100);
-  if(!host.isConnected)return;host.innerHTML=r.error?(String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّلي ملف 8-product-history.sql':esc(r.error.message)):histRows(r.data,false)}
+  if(!host.isConnected)return;host.innerHTML=r.error?(String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّل ملف 8-product-history.sql':esc(r.error.message)):histRows(r.data,false)}
 let hf={q:'',who:'',act:''};
 async function paneHistory(){$('#pane').innerHTML='<div class="empty">جاري التحميل…</div>';
   const r=await sb.from('products_history').select('id,product_id,product_name,action,changes,by_name,created_at').order('created_at',{ascending:false}).limit(1000);
-  if(r.error){$('#pane').innerHTML=`<div class="empty">${String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّلي ملف <b>supabase/8-product-history.sql</b> في Supabase.':esc(r.error.message)}</div>`;return}
+  if(r.error){$('#pane').innerHTML=`<div class="empty">${String(r.error.message).includes('products_history')?'السجل غير مفعّل بعد – شغّل ملف <b>supabase/8-product-history.sql</b> في Supabase.':esc(r.error.message)}</div>`;return}
   HROWS=r.data;const who=[...new Set(HROWS.map(h=>h.by_name).filter(Boolean))];
   $('#pane').innerHTML=`<div class="demo">كل تعديل على المنتجات بينسجل هون: مين عدّله، ومتى، وشو كان وشو صار. حركات الكميات موجودة بسجل <a href="/stock/" target="_blank" rel="noopener">نظام المخزون</a>.</div>
-  <div class="toolbar"><input type="search" id="hq" placeholder="ابحثي باسم المنتج" value="${esc(hf.q)}" style="flex:1 1 220px"><select id="hw" style="max-width:200px"><option value="">كل الأشخاص</option>${who.map(w=>`<option ${hf.who===w?'selected':''}>${esc(w)}</option>`).join('')}</select><select id="ha" style="max-width:160px"><option value="">كل الأنواع</option>${Object.entries(hAct).map(([k,v])=>`<option value="${k}" ${hf.act===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="hl"></div>`;
+  <div class="toolbar"><input type="search" id="hq" placeholder="ابحث باسم المنتج" value="${esc(hf.q)}" style="flex:1 1 220px"><select id="hw" style="max-width:200px"><option value="">كل الأشخاص</option>${who.map(w=>`<option ${hf.who===w?'selected':''}>${esc(w)}</option>`).join('')}</select><select id="ha" style="max-width:160px"><option value="">كل الأنواع</option>${Object.entries(hAct).map(([k,v])=>`<option value="${k}" ${hf.act===k?'selected':''}>${v}</option>`).join('')}</select></div><div id="hl"></div>`;
   const draw=()=>{const q=norm(hf.q);const L=HROWS.filter(h=>(!q||norm(h.product_name||'').includes(q))&&(!hf.who||h.by_name===hf.who)&&(!hf.act||h.action===hf.act));
     $('#hl').innerHTML=histRows(L.slice(0,300),true)+(L.length>300?`<p class="note">يظهر آخر 300 من ${L.length}.</p>`:'')+(HROWS.length===1000?'<p class="note">يظهر آخر 1000 تغيير.</p>':'')};
   draw();$('#hq').oninput=e=>{hf.q=e.target.value;draw()};$('#hw').onchange=e=>{hf.who=e.target.value;draw()};$('#ha').onchange=e=>{hf.act=e.target.value;draw()};
@@ -743,7 +743,7 @@ async function paneCommission(){const s=db.settings;const mkP=+(s.markup??0),cP=
     rows.push({'الطلب':'المجموع (المسلَّم)','المبيعات (د.أ)':r3(D.items),'فرق الزيادة':r3(D.diff),'العمولة':r3(D.com),'المستحق':r3(D.diff+D.com)});
     const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'العمولة '+cm.m);XLSX.writeFile(wb,'sn-commission-'+cm.m+'.xlsx')}}
 /* ---------- users and permissions (owners) ---------- */
-const UERR={not_configured:'إدارة المستخدمين غير مفعّلة بعد – لازم تضيفي مفتاح Supabase السري في إعدادات Vercel (التفاصيل بالأسفل).',owner_only:'هذه الصفحة للمالك فقط',email_exists:'في حساب بهالإيميل من قبل',bad_email:'الإيميل غير صحيح',weak_password:'كلمة السر لازم تكون 8 أحرف على الأقل',cannot_change_self:'ما بتقدري توقفي أو تحذفي حسابك أو تشيلي صلاحية المالك عنه',last_owner:'لازم يضل مالك واحد على الأقل'};
+const UERR={not_configured:'إدارة المستخدمين غير مفعّلة بعد – لازم تضيف مفتاح Supabase السري في إعدادات Vercel (التفاصيل بالأسفل).',owner_only:'هذه الصفحة للمالك فقط',email_exists:'في حساب بهالإيميل من قبل',bad_email:'الإيميل غير صحيح',weak_password:'كلمة السر لازم تكون 8 أحرف على الأقل',cannot_change_self:'ما بتقدر توقف أو تحذف حسابك أو تشيل صلاحية المالك عنه',last_owner:'لازم يضل مالك واحد على الأقل'};
 async function teamApi(body){const {data}=await sb.auth.getSession();if(!data.session)throw new Error('owner_only');
   const r=await fetch('/api/team',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+data.session.access_token,'x-anon-key':CFG.anonKey},body:JSON.stringify(body)});
   let j={};try{j=await r.json()}catch(e){j={error:r.status===404?'not_configured':'HTTP '+r.status}}if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
@@ -751,7 +751,7 @@ const uerr=e=>UERR[e.message]||('صار خطأ: '+e.message);
 const genPw=()=>{const a='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';let p='';const r=crypto.getRandomValues(new Uint32Array(10));r.forEach(x=>p+=a[x%a.length]);return p+'#'+(r[0]%90+10)};
 let USERS=[];const showModal=h=>{$('#modal').innerHTML=h;show('#modal')},closeModal=()=>close();
 async function paneUsers(){$('#pane').innerHTML='<div class="empty">جاري التحميل…</div>';
-  try{USERS=(await teamApi({action:'list'})).users}catch(e){$('#pane').innerHTML=`<div class="demo">${esc(uerr(e))}</div>${e.message==='not_configured'?`<div class="kpi"><b style="font-size:16px">التفعيل (مرة وحدة):</b><ol><li>في Supabase: <b>Project Settings ← API Keys</b>، انسخي <b>Secret key</b> (يبدأ بـ sb_secret_).</li><li>في Vercel: مشروع <b>saidnazzalest-shop ← Settings ← Environment Variables</b>، أضيفي متغير اسمه <b>SUPABASE_SECRET_KEY</b> وقيمته المفتاح، ثم <b>Redeploy</b>.</li><li>ما تشاركي هذا المفتاح مع حدا ولا تحطيه بأي ملف.</li></ol></div>`:''}`;return}
+  try{USERS=(await teamApi({action:'list'})).users}catch(e){$('#pane').innerHTML=`<div class="demo">${esc(uerr(e))}</div>${e.message==='not_configured'?`<div class="kpi"><b style="font-size:16px">التفعيل (مرة وحدة):</b><ol><li>في Supabase: <b>Project Settings ← API Keys</b>، انسخ <b>Secret key</b> (يبدأ بـ sb_secret_).</li><li>في Vercel: مشروع <b>saidnazzalest-shop ← Settings ← Environment Variables</b>، أضف متغير اسمه <b>SUPABASE_SECRET_KEY</b> وقيمته المفتاح، ثم <b>Redeploy</b>.</li><li>ما تشارك هذا المفتاح مع حدا ولا تحطه بأي ملف.</li></ol></div>`:''}`;return}
   const role=u=>u.owner?'<span class="badge" style="position:static">مالك – كل الصلاحيات</span>':u.perms.length?u.perms.map(p=>`<span class="tag">${PERMS[p]?PERMS[p][0]:esc(p)}</span>`).join(' '):'<span class="note">بدون صلاحيات</span>';
   const SR={none:'—',staff:'موظف',owner:'صاحب الحساب'};
   $('#pane').innerHTML=`<div class="toolbar"><button class="btn" id="uadd">+ إضافة مستخدم</button></div>
@@ -764,11 +764,11 @@ function userForm(u){const n=!u;const pw=n?genPw():'';
   showModal(`<div class="dh"><h2>${n?'مستخدم جديد':'تعديل '+esc(u.name||u.email)}</h2><button class="x" data-close aria-label="إغلاق">×</button></div><form id="uf" style="padding:6px 22px 22px">
   <label for="un">الاسم</label><input id="un" type="text" value="${esc(u?u.name:'')}" required>
   <label for="ue">الإيميل (للدخول)</label><input id="ue" type="email" dir="ltr" value="${esc(u?u.email:'')}" ${n?'required':'disabled'}>
-  ${n?`<label for="up">كلمة سر مؤقتة (أعطيها للمستخدم، وبيغيّرها من «حسابي»)</label><div class="row"><input id="up" type="text" dir="ltr" value="${pw}" minlength="8" required style="flex:1"><button type="button" class="btn alt" id="upg">توليد</button></div>`:''}
+  ${n?`<label for="up">كلمة سر مؤقتة (أعطها للمستخدم، وبيغيّرها من «حسابي»)</label><div class="row"><input id="up" type="text" dir="ltr" value="${pw}" minlength="8" required style="flex:1"><button type="button" class="btn alt" id="upg">توليد</button></div>`:''}
   <label class="row" style="margin-top:14px;color:var(--ink)"><input type="checkbox" id="uo" ${u&&u.owner?'checked':''} ${u&&u.me?'disabled':''} style="width:20px;height:20px"> <b>مالك</b> – كل الصلاحيات، ومنها المستخدمين ونسبة الزيادة والعمولة</label>
   <fieldset id="ups" style="border:1px solid var(--line);border-radius:12px;margin-top:10px"><legend class="note">الصلاحيات</legend>${Object.entries(PERMS).map(([k,[t,d]])=>`<label class="row" style="margin:6px 0;color:var(--ink)"><input type="checkbox" data-perm="${k}" ${u&&(u.owner||u.perms.includes(k))?'checked':''} style="width:20px;height:20px"> <b>${t}</b> <span class="note">– ${d}</span></label>`).join('')}</fieldset>
   <label for="us">نظام المخزون</label><select id="us"><option value="none">بدون دخول</option><option value="staff">موظف (بيع، استلام، جرد)</option><option value="owner">صاحب الحساب (كل شي)</option></select>
-  ${n?'':`<label class="row" style="margin-top:14px;color:var(--ink)"><input type="checkbox" id="ua" ${u.active?'checked':''} ${u.me?'disabled':''} style="width:20px;height:20px"> الحساب فعّال (لو شلتي العلامة ما بيقدر يدخل)</label>
+  ${n?'':`<label class="row" style="margin-top:14px;color:var(--ink)"><input type="checkbox" id="ua" ${u.active?'checked':''} ${u.me?'disabled':''} style="width:20px;height:20px"> الحساب فعّال (لو شلت العلامة ما بيقدر يدخل)</label>
   <details style="margin-top:12px"><summary class="note" style="cursor:pointer">تغيير كلمة السر</summary><div class="row" style="margin-top:8px"><input id="unp" type="text" dir="ltr" placeholder="كلمة سر جديدة (8 أحرف أو أكثر)" style="flex:1"><button type="button" class="btn alt" id="unpg">توليد</button><button type="button" class="btn" id="unps">حفظ كلمة السر</button></div></details>`}
   <p class="oos" id="uerr"></p>
   <div class="row" style="justify-content:space-between;margin-top:10px">${!n&&!u.me?'<button type="button" class="btn alt" id="udel" style="color:var(--bad)">حذف المستخدم</button>':'<span></span>'}<button class="btn">${n?'إنشاء الحساب':'حفظ'}</button></div></form>`);
@@ -776,13 +776,13 @@ function userForm(u){const n=!u;const pw=n?genPw():'';
   const syncOwner=()=>{const o=$('#uo').checked;$('#ups').querySelectorAll('input').forEach(x=>{x.disabled=o;if(o)x.checked=true})};$('#uo').onchange=syncOwner;syncOwner();
   $('#upg')&&($('#upg').onclick=()=>$('#up').value=genPw());$('#unpg')&&($('#unpg').onclick=()=>$('#unp').value=genPw());
   const fail2=e=>{$('#uerr').textContent=uerr(e)};
-  $('#unps')&&($('#unps').onclick=async()=>{try{await teamApi({action:'password',id:u.id,password:$('#unp').value});toast('تم تغيير كلمة السر – أعطيها للمستخدم')}catch(e){fail2(e)}});
-  $('#udel')&&($('#udel').onclick=async e=>{const b=e.target;if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكدة؟ اضغطي مرة ثانية';return}try{await teamApi({action:'remove',id:u.id});closeModal();toast('تم حذف المستخدم');paneUsers()}catch(err){fail2(err)}});
+  $('#unps')&&($('#unps').onclick=async()=>{try{await teamApi({action:'password',id:u.id,password:$('#unp').value});toast('تم تغيير كلمة السر – أعطها للمستخدم')}catch(e){fail2(e)}});
+  $('#udel')&&($('#udel').onclick=async e=>{const b=e.target;if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='متأكد؟ اضغط مرة ثانية';return}try{await teamApi({action:'remove',id:u.id});closeModal();toast('تم حذف المستخدم');paneUsers()}catch(err){fail2(err)}});
   $('#uf').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;
     const body={name:$('#un').value.trim(),owner:$('#uo').checked,perms:[...$('#ups').querySelectorAll('[data-perm]:checked')].map(x=>x.dataset.perm),stock:$('#us').value};
-    if(!body.owner&&!body.perms.length&&body.stock==='none'){b.disabled=false;$('#uerr').textContent='اختاري صلاحية وحدة على الأقل';return}
+    if(!body.owner&&!body.perms.length&&body.stock==='none'){b.disabled=false;$('#uerr').textContent='اختر صلاحية وحدة على الأقل';return}
     try{if(n)await teamApi({action:'create',email:$('#ue').value.trim(),password:$('#up').value,...body});else await teamApi({action:'update',id:u.id,active:$('#ua').checked,...body});
-      closeModal();toast(n?'تم إنشاء الحساب – أعطي الإيميل وكلمة السر للمستخدم':'تم الحفظ');paneUsers()}catch(err){b.disabled=false;fail2(err)}}}
+      closeModal();toast(n?'تم إنشاء الحساب – أعطِ الإيميل وكلمة السر للمستخدم':'تم الحفظ');paneUsers()}catch(err){b.disabled=false;fail2(err)}}}
 async function paneAccount(){
   const {data}=await sb.auth.getUser();const email=data?.user?.email||'';
   $('#pane').innerHTML=`<form id="pwf" style="max-width:420px"><p class="note" style="margin-top:0">مسجّلة الدخول باسم <b dir="ltr">${esc(email)}</b></p>
@@ -799,7 +799,7 @@ async function paneAccount(){
     const chk=await sb.auth.signInWithPassword({email,password:p0});
     if(chk.error){btn.disabled=false;btn.textContent='تغيير كلمة السر';return err.textContent='كلمة السر الحالية غير صحيحة'}
     const r=await sb.auth.updateUser({password:p1});btn.disabled=false;btn.textContent='تغيير كلمة السر';
-    if(r.error){console.error(r.error);return err.textContent=/weak|short|characters/i.test(r.error.message)?'كلمة السر ضعيفة – جربي وحدة أطول فيها أرقام وأحرف':'ما تغيّرت كلمة السر: '+r.error.message}
+    if(r.error){console.error(r.error);return err.textContent=/weak|short|characters/i.test(r.error.message)?'كلمة السر ضعيفة – جرّب وحدة أطول فيها أرقام وأحرف':'ما تغيّرت كلمة السر: '+r.error.message}
     e.target.reset();toast('تم تغيير كلمة السر')};
 }
 function paneSettings(){
@@ -809,7 +809,7 @@ function paneSettings(){
   <label for="swm">إرسال الطلبات على واتساب</label><select id="swm"><option value="optional" ${s.waMode!=='auto'?'selected':''}>اختياري – زر للزبون بعد تأكيد الطلب</option><option value="auto" ${s.waMode==='auto'?'selected':''}>تلقائي – يفتح واتساب للزبون بالطلب جاهز</option></select>
   <label for="sur">سعر الدولار: 1 دينار = ؟ دولار (للزوار من خارج الأردن)</label><div class="row"><input id="sur" type="number" min="0.5" max="3" step="0.001" dir="ltr" value="${s.usdRate||1.41}" style="max-width:140px"><label class="row" style="margin:0"><input type="checkbox" id="sua" ${s.usdAuto!==false?'checked':''} style="width:20px;height:20px"> عرض الأسعار بالدولار تلقائياً لزوار خارج الأردن</label></div>
   <div class="row"><div style="flex:1"><label for="smk">زيادة أسعار الموقع على سعر ترست (%)</label><input id="smk" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.markup??0}" ${acc.owner?'':'disabled title="للمالك فقط"'}></div><div style="flex:1"><label for="scm">العمولة على المبيعات أونلاين (%)</label><input id="scm" type="number" min="0" max="100" step="0.5" dir="ltr" value="${s.commission??0}" ${acc.owner?'':'disabled title="للمالك فقط"'}></div></div>
-  <label for="sfo">توصيل مجاني للطلبات من (دينار) — 0 لإلغائه</label><input id="sfo" type="number" min="0" step="0.5" dir="ltr" value="${s.freeOver||0}"><label>مناطق التوصيل (أمثلة – عدّليها حسب أسعاركم): الاسم عربي | إنجليزي | الأجرة | خارج الأردن</label><p class="note" style="margin:0 0 6px">للمناطق خارج الأردن: الأجرة تُحدَّد مع الزبون بعد الطلب، والزبون يدخل الدولة والمدينة.</p>${s.zones.map((z,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,.8fr) auto 44px;align-items:center"><input type="text" data-zn="${i}" value="${esc(z.name)}" aria-label="المنطقة"><input type="text" dir="ltr" data-zne="${i}" value="${esc(z.name_en||'')}" aria-label="English"><input type="number" step="0.25" min="0" data-zf="${i}" value="${z.fee}" dir="ltr" aria-label="الأجرة" ${z.intl?'disabled':''}><label class="row" style="margin:0;color:var(--ink);font-size:13px;white-space:nowrap"><input type="checkbox" data-zi="${i}" ${z.intl?'checked':''} style="width:20px;height:20px"> خارج الأردن</label><button type="button" data-zx="${i}" aria-label="حذف">×</button></div>`).join('')}
+  <label for="sfo">توصيل مجاني للطلبات من (دينار) — 0 لإلغائه</label><input id="sfo" type="number" min="0" step="0.5" dir="ltr" value="${s.freeOver||0}"><label>مناطق التوصيل (أمثلة – عدّلها حسب أسعاركم): الاسم عربي | إنجليزي | الأجرة | خارج الأردن</label><p class="note" style="margin:0 0 6px">للمناطق خارج الأردن: الأجرة تُحدَّد مع الزبون بعد الطلب، والزبون يدخل الدولة والمدينة.</p>${s.zones.map((z,i)=>`<div class="vrow" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1.4fr) minmax(0,.8fr) auto 44px;align-items:center"><input type="text" data-zn="${i}" value="${esc(z.name)}" aria-label="المنطقة"><input type="text" dir="ltr" data-zne="${i}" value="${esc(z.name_en||'')}" aria-label="English"><input type="number" step="0.25" min="0" data-zf="${i}" value="${z.fee}" dir="ltr" aria-label="الأجرة" ${z.intl?'disabled':''}><label class="row" style="margin:0;color:var(--ink);font-size:13px;white-space:nowrap"><input type="checkbox" data-zi="${i}" ${z.intl?'checked':''} style="width:20px;height:20px"> خارج الأردن</label><button type="button" data-zx="${i}" aria-label="حذف">×</button></div>`).join('')}
   <button type="button" class="btn alt" id="addz">+ منطقة</button>
   <div class="row" style="justify-content:space-between;margin-top:20px"><span></span><button class="btn">حفظ الإعدادات</button></div></form>`;
   const sync=()=>{s.store=$('#sn').value;s.store_en=$('#sne').value;s.whatsapp=$('#sw').value.replace(/\D/g,'');s.freeOver=+$('#sfo').value||0;s.waMode=$('#swm').value;s.usdRate=+$('#sur').value||1.41;if(acc.owner){s.markup=Math.max(0,+$('#smk').value||0);s.commission=Math.max(0,+$('#scm').value||0)}s.usdAuto=$('#sua').checked;s.zones=s.zones.map((z,i)=>({name:$(`[data-zn="${i}"]`).value,name_en:$(`[data-zne="${i}"]`).value,fee:+$(`[data-zf="${i}"]`).value||0,intl:$(`[data-zi="${i}"]`).checked}))};
@@ -862,7 +862,7 @@ const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 function setAppMode(a){const put=(q,k,v)=>{const el=$(q);if(el)el[k]=v};put('#mf','href',a?'admin.webmanifest':'shop.webmanifest');put('#aicon','href',a?'icons/apple-admin.png':'icons/apple-shop.png');put('#atitle','content',a?'SN Admin':'سعيد نزال');put('#insIcon','src',a?'icons/admin-192.png':'icons/shop-192.png');showInstall()}
 function showInstall(){const bar=$('#install');let dis={};try{dis=JSON.parse(localStorage.getItem('sn-install-x')||'{}')}catch(e){}
   const a=location.hash==='#admin',key=a?'admin':'shop';if(standalone()||dis[key]||(!deferredInstall&&!isIOS)||(!a&&innerWidth>900)){bar.hidden=true;return}
-  $('#insT').textContent=a?'ثبّتي لوحة التحكم على موبايلك':(en()?'Install the Said Nazzal app':'ثبّت تطبيق سعيد نزال');
+  $('#insT').textContent=a?'ثبّت لوحة التحكم على موبايلك':(en()?'Install the Said Nazzal app':'ثبّت تطبيق سعيد نزال');
   $('#insS').textContent=isIOS&&!deferredInstall?(en()?'Tap Share, then “Add to Home Screen”':'اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»'):(en()?'Faster ordering, right from your home screen':'اطلب أسرع من شاشتك الرئيسية');
   $('#insGo').textContent=en()?'Install':'تثبيت';$('#insGo').hidden=isIOS&&!deferredInstall;bar.hidden=false}
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;showInstall()});
