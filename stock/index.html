@@ -148,12 +148,17 @@ const lowOf=it=>it.qty>0&&it.min_qty!=null&&it.qty<=it.min_qty;
 const index=()=>{byId=new Map(items.map(i=>[i.id,i]));byCode=new Map();items.forEach(i=>{if(i.barcode)byCode.set(latin(i.barcode).trim(),i);byCode.set('#'+latin(i.code).trim(),i)});items.forEach(i=>i._n=norm(i.name+' '+(i.name_en||'')+' '+(i.barcode||'')+' '+i.code+' '+(i.loc||'').toLowerCase()))};
 const findCode=c=>{c=latin(c).trim();return byCode.get(c)||byCode.get('#'+c)||(/^\d+$/.test(c)?items.find(i=>i.barcode&&latin(i.barcode).replace(/^0+/,'')===c.replace(/^0+/,'')):null)};
 const COLS0='id,code,barcode,name,price,qty,min_qty,grp,active,counted_at,trust_qty,trust_at,updated_at';let OPTC=['name_en','loc','loc2'],COLS=COLS0+','+OPTC.join(','),hasLoc=true;
+/* items kept on the device so the app opens at once; refreshed from the server right after */
+const kv=(()=>{let p;const db=()=>p||(p=new Promise((ok,no)=>{const r=indexedDB.open('sn-stock',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
+  const run=(mode,f)=>db().then(d=>new Promise(ok=>{const t=d.transaction('kv',mode);const q=f(t.objectStore('kv'));t.oncomplete=()=>ok(q&&q.result);t.onerror=t.onabort=()=>ok(null)})).catch(()=>null);
+  return{get:k=>run('readonly',o=>o.get(k)),set:(k,v)=>run('readwrite',o=>o.put(v,k)),del:k=>run('readwrite',o=>o.delete(k))}})();
+let cacheT=null;const saveCache=()=>{clearTimeout(cacheT);cacheT=setTimeout(()=>{if(!me||!role)return;kv.set('items',{u:me.id,role,name:myName,cols:COLS,optc:OPTC,at:Date.now(),lastImport,items:items.map(({_n,...x})=>x)})},800)};
 async function fetchAll(table,cols,order){const q=from=>sb.from(table).select(cols).order(order).range(from,from+999);const out=[];
   for(let from=0;;from+=6000){const rs=await Promise.all([0,1,2,3,4,5].map(k=>q(from+k*1000)));const bad=rs.find(r=>r.error);if(bad)throw bad.error;
     rs.forEach(r=>out.push(...r.data));if(rs[5].data.length<1000)break}return out}
-async function loadItems(){let out;for(;;){try{out=await fetchAll('inv_items',COLS,'id');break}catch(e){const m=e.message||'';const miss=OPTC.find(c=>m.includes(c));if(!miss)throw e;OPTC=OPTC.filter(c=>c!==miss&&!(miss.startsWith('loc')&&c.startsWith('loc')));COLS=[COLS0,...OPTC].join(',')}}hasLoc=OPTC.includes('loc');
+async function loadItems(){let out;for(;;){try{out=await fetchAll('inv_items',COLS,'id');break}catch(e){const m=e.message||'';const miss=OPTC.find(c=>m.includes(c));if(!miss)throw e;OPTC=OPTC.filter(c=>c!==miss&&!(miss.startsWith('loc')&&c.startsWith('loc')));COLS=[COLS0,...OPTC].join(',')}}hasLoc=OPTC.includes('loc');saveCache();
   items=out.map(i=>({...i,qty:+i.qty,price:i.price==null?null:+i.price,min_qty:i.min_qty==null?null:+i.min_qty,trust_qty:i.trust_qty==null?null:+i.trust_qty}));index()}
-async function refreshItems(ids){ids=[...new Set(ids)].filter(Boolean);for(let k=0;k<ids.length;k+=200){const r=await sb.from('inv_items').select(COLS).in('id',ids.slice(k,k+200));if(r.error)return;r.data.forEach(n=>{const o=byId.get(n.id);const v={...n,qty:+n.qty,price:n.price==null?null:+n.price,min_qty:n.min_qty==null?null:+n.min_qty,trust_qty:n.trust_qty==null?null:+n.trust_qty};if(o){Object.assign(o,v);o._n=norm(o.name+' '+(o.name_en||'')+' '+(o.barcode||'')+' '+o.code)}else items.push(v)})}index()}
+async function refreshItems(ids){ids=[...new Set(ids)].filter(Boolean);for(let k=0;k<ids.length;k+=200){const r=await sb.from('inv_items').select(COLS).in('id',ids.slice(k,k+200));if(r.error)return;r.data.forEach(n=>{const o=byId.get(n.id);const v={...n,qty:+n.qty,price:n.price==null?null:+n.price,min_qty:n.min_qty==null?null:+n.min_qty,trust_qty:n.trust_qty==null?null:+n.trust_qty};if(o){Object.assign(o,v);o._n=norm(o.name+' '+(o.name_en||'')+' '+(o.barcode||'')+' '+o.code)}else items.push(v)});saveCache()}index()}
 const search=(q,lim=30)=>{q=norm(q);if(!q)return[];const hit=findCode(q);const ws=q.split(' ');const r=items.filter(i=>ws.every(w=>i._n.includes(w)));if(hit&&!r.includes(hit))r.unshift(hit);return r.slice(0,lim)};
 
 /* ---------- modal / camera ---------- */
@@ -196,17 +201,33 @@ function renderLogin(msg=''){$('#tabs').hidden=true;$('#who').textContent='';
 async function start(){
   if(!sb){$('#app').innerHTML='<div class="empty">النظام غير مربوط بقاعدة البيانات (config.js).</div>';return}
   const {data}=await sb.auth.getSession();if(!data.session)return renderLogin();
-  me=data.session.user;const r=await sb.from('inv_users').select('role,name').eq('user_id',me.id).maybeSingle();
-  if(!r.data){await sb.auth.signOut();return renderLogin('هذا الحساب ما عنده صلاحية على نظام المخزون')}
-  role=r.data.role;myName=r.data.name||me.email;$('#who').innerHTML=`${esc(myName)}<br>${isOwner()?'صاحب الحساب':'موظف'} · <button class="btn sm alt" id="out" style="min-height:28px;padding:0 10px;background:transparent;color:#fff;border-color:#fff6">خروج</button>`;
-  $('#out').onclick=async()=>{await sb.auth.signOut();location.reload()};
+  me=data.session.user;
+  const ur=sb.from('inv_users').select('role,name').eq('user_id',me.id).maybeSingle();
+  const c=await kv.get('items');
+  const denied=async()=>{await kv.del('items');await sb.auth.signOut();renderLogin('هذا الحساب ما عنده صلاحية على نظام المخزون')};
+  const getImport=()=>isOwner()?sb.from('inv_imports').select('created_at,mode,summary').order('created_at',{ascending:false}).limit(1).then(li=>{lastImport=li.data&&li.data[0]}):null;
+  if(c&&c.u===me.id&&Date.now()-c.at<14*864e5&&Array.isArray(c.items)){
+    // open at once from the copy on this device, then bring everything up to date
+    role=c.role;myName=c.name;COLS=c.cols;OPTC=c.optc;hasLoc=OPTC.includes('loc');lastImport=c.lastImport;items=c.items;index();shell();
+    const r=await ur;if(r.data===null&&!r.error)return denied();
+    if(r.data&&(r.data.role!==role||(r.data.name||me.email)!==myName)){role=r.data.role;myName=r.data.name||me.email;shell(true)}
+    try{await Promise.all([loadItems(),getImport()])}catch(e){return toast('تعذّر تحديث الأصناف – المعروض آخر نسخة على الجهاز',5000)}
+    const busy=document.activeElement&&document.activeElement.matches('input,textarea,select')||$('#modal.on');
+    if(!busy&&['home','items','locs'].includes(tab))PANES[tab]();
+    return}
+  const r=await ur;
+  if(!r.data)return denied();
+  role=r.data.role;myName=r.data.name||me.email;
   $('#app').innerHTML='<div class="empty">جاري تحميل الأصناف…</div>';
-  try{await loadItems()}catch(e){$('#app').innerHTML=`<div class="errbox">تعذّر التحميل: ${esc(emsg(e))}</div>`;return}
-  if(isOwner()){const li=await sb.from('inv_imports').select('created_at,mode,summary').order('created_at',{ascending:false}).limit(1);lastImport=li.data&&li.data[0]}
+  try{await Promise.all([loadItems(),getImport()])}catch(e){$('#app').innerHTML=`<div class="errbox">تعذّر التحميل: ${esc(emsg(e))}</div>`;return}
+  shell()}
+function shell(again){
+  $('#who').innerHTML=`${esc(myName)}<br>${isOwner()?'صاحب الحساب':'موظف'} · <button class="btn sm alt" id="out" style="min-height:28px;padding:0 10px;background:transparent;color:#fff;border-color:#fff6">خروج</button>`;
+  $('#out').onclick=async()=>{await kv.del('items');await sb.auth.signOut();location.reload()};
   const T=[['home','الرئيسية'],['items','الأصناف'],['record','بيع / استلام'],['count','الجرد'],['locs','الأماكن'],...(isOwner()?[['import','استيراد ترست'],['link','المتجر']]:[]),['reports','التقارير'],...(isOwner()?[['users','المستخدمين']]:[])];
   $('#tabs').hidden=false;$('#tabs').innerHTML=T.map(([k,v])=>`<button class="tab" data-tab="${k}">${v}</button>`).join('');
   $('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b)go(b.dataset.tab)};
-  go(location.hash.slice(1)||(items.length?'home':(isOwner()?'import':'home')))}
+  go(again?tab:(location.hash.slice(1)||(items.length?'home':(isOwner()?'import':'home'))))}
 const PANES={};
 function go(t){if(!PANES[t]||(['import','link','users'].includes(t)&&!isOwner()))t='home';tab=t;history.replaceState(null,'','#'+t);$$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));camStop();PANES[t]()}
 
