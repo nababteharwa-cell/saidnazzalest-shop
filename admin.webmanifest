@@ -3,7 +3,7 @@
   "short_name": "SN Admin",
   "description": "إدارة الطلبات والمنتجات",
   "id": "/shop-o6bwd2u8fe.html#admin",
-  "start_url": "/shop-o6bwd2u8fe.html#admin",
+  "start_url": "/shop-o6bwd2u8fe/#admin",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

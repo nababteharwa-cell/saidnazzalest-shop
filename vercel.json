@@ -3,20 +3,99 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(self), microphone=(), geolocation=()" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'none'"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(), geolocation=()"
+        }
       ]
     },
     {
       "source": "/shop-o6bwd2u8fe.html",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
     },
     {
       "source": "/photos/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=604800"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/render?p="
+    },
+    {
+      "source": "/shop-o6bwd2u8fe",
+      "destination": "/api/render?base=private&p="
+    },
+    {
+      "source": "/shop-o6bwd2u8fe/:path*",
+      "destination": "/api/render?base=private&p=:path*"
+    },
+    {
+      "source": "/c/:path*",
+      "destination": "/api/render?p=c/:path*"
+    },
+    {
+      "source": "/p/:path*",
+      "destination": "/api/render?p=p/:path*"
+    },
+    {
+      "source": "/search",
+      "destination": "/api/render?p=search"
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/sitemap"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/api/robots"
+    }
+  ],
+  "functions": {
+    "api/render.js": {
+      "includeFiles": "{shop-o6bwd2u8fe.html,coming-soon.html,routes.js}"
+    },
+    "api/sitemap.js": {
+      "includeFiles": "routes.js"
+    }
+  },
+  "redirects": [
+    {
+      "source": "/shop-o6bwd2u8fe.html",
+      "destination": "/shop-o6bwd2u8fe/",
+      "permanent": true
+    },
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
     }
   ]
 }

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="/">
 <meta name="robots" content="noindex,nofollow">
 <title>سعيد نزال التجارية | Said Nazzal Trading</title>
 <meta name="description" content="مستلزمات المطاعم والكافيهات والحلويات ومواد التغليف – عمّان، الجبيهة. اطلب أونلاين والدفع عند الاستلام.">
@@ -98,6 +99,13 @@ header{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:sat
 .ask{color:var(--goldInk);font-weight:600}
 .oos{color:var(--bad);font-size:13px}
 .empty{padding:48px 20px;text-align:center;color:var(--mute)}
+a.card,a.tile,a.chip,a.ochip{text-decoration:none;color:inherit}a.chip.on{color:var(--navy)}a.ochip.on{color:#fff}a.ochip{display:inline-flex;align-items:center}a.chip{display:inline-flex;align-items:center}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;color:var(--mute);margin:4px 0 6px}.crumbs a{color:var(--mute);min-height:36px;display:inline-flex;align-items:center}.crumbs a:hover{color:var(--navy)}.crumbs span[aria-hidden]{opacity:.5}
+.pagehead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 18px;margin:0 0 14px}.pagehead h1{margin:0;font-size:clamp(24px,3vw,34px);line-height:1.2}.pagehead .count{color:var(--mute)}
+.tools{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin:0 0 16px}.tools select{min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 10px}.tools label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink);margin:0}.tools input[type=checkbox]{width:22px;height:36px;margin:0}
+.feat{margin:6px 0 30px}.feat .shophead{flex-wrap:wrap}.feat .shophead a,.shophead a.count{font-weight:600;color:var(--navy);white-space:nowrap;flex:none;min-height:40px;display:inline-flex;align-items:center}.feat .grid{grid-template-columns:repeat(6,minmax(0,1fr))}@media(max-width:1100px){.feat .grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.lead{color:var(--mute);margin:-6px 0 18px;max-width:70ch}
+.pview{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;background:#fff;border-radius:var(--r);padding:18px;margin-top:8px}.pview h1{margin:0 0 8px;font-size:clamp(22px,2.6vw,30px)}.pview .thumb{aspect-ratio:4/3;background:var(--kraftSoft);border-radius:12px;overflow:hidden}.pview img{width:100%;height:100%;object-fit:contain}@media(max-width:700px){.pview{grid-template-columns:1fr}}
 /* buttons */
 .btn{border:0;border-radius:999px;padding:11px 20px;min-height:44px;font-weight:600;background:var(--navy);color:#fff}
 .btn:hover{background:#24397A}
@@ -181,18 +189,20 @@ footer b{color:#fff;font-size:16px}
 footer a{color:#fff;display:inline-block;padding:10px 4px}
 @media (prefers-reduced-motion:reduce){.drawer,.card{transition:none}.card:hover{transform:none}}
 @media(max-width:900px) and (min-width:601px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.logo{font-size:15px;overflow:hidden;gap:8px}.mark{flex:none;width:38px;height:38px}#storeName{overflow:hidden;text-overflow:ellipsis}#langBtn{display:none}.hbtn{padding:9px 10px}#cartLbl{display:none}.feat .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:600px){.chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(to var(--edge,left),#000 82%,transparent);mask-image:linear-gradient(to var(--edge,left),#000 82%,transparent)}[dir=ltr] .chips{--edge:right}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}header{gap:8px}.logo{flex:1}.search{order:5;flex-basis:100%}.logo span:last-child{font-size:15px}.hbtn{padding:8px 10px}.hero{min-height:420px;align-items:flex-end}.hero::before{background:linear-gradient(to top,#1B2D5Bf7 0%,#1B2D5Bcc 50%,#1B2D5B33 100%)}.ring{width:76px;height:76px;font-size:11px}.ring b{font-size:17px}.hero .txt{padding-top:104px}.ring b{font-size:19px}.art{display:none}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card .b{padding:10px 10px 12px}table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 12px;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;color:var(--mute)}.stack td:empty{display:none}.vrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px}.vrow input:first-child{grid-column:1/-1}}
 </style>
 <script src="config.js"></script>
+<script src="routes.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
 <header>
-  <a class="logo" href="#"><span class="mark" style="border:0;overflow:hidden"><img id="logoImg" src="photos/b-logo.jpg" alt=""></span><span id="storeName">سعيد نزال التجارية</span></a>
+  <a class="logo" id="logoLink" href="/" data-nav><span class="mark" style="border:0;overflow:hidden"><img id="logoImg" src="photos/b-logo.jpg" alt=""></span><span id="storeName">سعيد نزال التجارية</span></a>
   <div class="search" id="searchBox"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="ابحث عن منتج… علب، أكياس، قوالب" aria-label="بحث"></div>
   <button class="hbtn" id="curBtn" aria-label="Currency / العملة" style="font-weight:700;min-width:44px">JD</button>
-  <button class="hbtn" id="langBtnW"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langBtn">English</span></button>
+  <button class="hbtn" id="langBtnW" aria-label="English / العربية"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><span id="langBtn">English</span></button>
   <button class="hbtn" id="cartBtn" aria-label="Cart"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg><span id="cartLbl">السلة</span> <span class="badge" id="cartCount">0</span></button>
   <button class="hbtn" id="adminBtnW" style="display:none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="adminBtn">لوحة التحكم</span></button>
 </header>
@@ -338,37 +348,83 @@ const CAT_EN=()=>{const m={...EN_CAT};db.products.forEach(p=>{if(p.cat_en)m[p.ca
 const pc=c=>en()?(CAT_EN()[c]||c):c;
 const zn=z=>en()?(z.name_en||z.name):z.name;
 function applyLang(){document.documentElement.lang=lang;document.documentElement.dir=en()?'ltr':'rtl';$('#langBtn').textContent=en()?'العربية':'English';$('#q').placeholder=t('search');$('#cartLbl').textContent=t('cart');$('#cartTitle').textContent=t('cartT');$('#footAddr').textContent=t('foot');setName()}
-let sub=null,tag=null,shown=48;const SKEY=new WeakMap();
+const RT=window.SNRoutes;
+const SBASE=location.pathname===RT.PRIVATE+'.html'||location.pathname.startsWith(RT.PRIVATE+'/')||location.pathname===RT.PRIVATE?RT.PRIVATE:'';
+if(SBASE&&!location.pathname.startsWith(RT.PRIVATE+'/'))history.replaceState(history.state,'',RT.PRIVATE+'/'+location.search+location.hash);
+{const sp=new URLSearchParams(location.search);const L=sp.get('lang');if(L==='en'||L==='ar'){lang=L;try{localStorage.setItem('sn-lang',lang)}catch(e){}}}
+const PATHS=RT.paths(SBASE);
+const withLang=u=>{const [p,h]=u.split('#');const url=new URL(p,location.origin);if(en())url.searchParams.set('lang','en');else url.searchParams.delete('lang');return url.pathname+url.search+(h?'#'+h:'')};
+const L={home:p=>withLang(PATHS.home()),all:tg=>withLang(PATHS.all(tg)),cat:(c,sx)=>withLang(PATHS.cat(c,sx)),search:q=>withLang(PATHS.search(q)),product:p=>withLang(PATHS.product(p))};
+let shown=48,view={view:'home'},sortBy='stock',onlyIn=false,rendered='';const SKEY=new WeakMap();
 const skey=p=>{let k=SKEY.get(p);if(!k){k=norm([p.name,p.desc,p.cat,p.sub,p.name_en,p.desc_en,p.cat_en,p.sub_en,...p.vars.map(v=>v.label)].filter(Boolean).join(' '));SKEY.set(p,k)}return k};
+const ctree=()=>RT.tree(db.settings,db.products);
+function readURL(){const r=RT.parse(location.pathname.slice(SBASE.length));const sp=new URLSearchParams(location.search);const T=ctree();
+  view={view:r.view,cat:null,sub:null,tag:sp.get('tag')||null,q:sp.get('q')||'',pid:r.pid||null};
+  if(r.view==='cat'){const c=RT.findCat(T,r.catSlug);if(!c)view.view='notfound';else{view.cat=c.name;if(r.subSlug){const x=RT.findSub(c,r.subSlug);if(x)view.sub=x.name;else view.view='notfound'}}}
+  if(r.view==='product'){const p=db.products.find(x=>x.id===r.pid&&x.visible!==false);if(!p)view.view='notfound';else view.cat=p.cat}
+  if(r.view!=='search'&&$('#q'))$('#q').value='';else if($('#q')&&document.activeElement!==$('#q'))$('#q').value=view.q}
+const pageKey=v=>v.view==='product'?((history.state&&history.state.under)||'cat|'+v.cat+'||'):v.view+'|'+(v.cat||'')+'|'+(v.sub||'')+'|'+(v.tag||'')+'|'+(v.q||'');
+let pendingBack=null;const settle=async()=>{if(pendingBack){await pendingBack;pendingBack=null}};
+async function go(url,{replace=false,keepScroll=false}={}){await settle();history[replace?'replaceState':'pushState']({},'',url);readURL();shown=48;renderShop();if(!keepScroll)scrollTo(0,0)}
+async function openProductNav(id){await settle();const p=db.products.find(x=>x.id===id);if(!p)return;history.pushState({under:rendered,pushed:1},'',L.product(p));readURL();setMeta();openProduct(id)}
+let SCAT=null,SCATK=null;const catEnMemo=()=>{if(SCATK!==db.products||!SCAT){SCATK=db.products;SCAT=CAT_EN()}return SCAT};
+const pcF=c=>en()?(catEnMemo()[c]||c):c;
+const meta=(sel,attr,val)=>{let el=document.head.querySelector(sel);if(!el){el=document.createElement(sel.startsWith('link')?'link':'meta');const m=sel.match(/\[(\w+)="([^"]+)"\]/);el.setAttribute(m[1],m[2]);document.head.appendChild(el)}el.setAttribute(attr,val)};
+function setMeta(){const store=en()?(db.settings.store_en||'Said Nazzal Trading'):(db.settings.store||'سعيد نزال التجارية');let ttl=store,desc=en()?'Restaurant, café, pastry and packaging supplies in Amman – Jubeiha. Order online, cash on delivery in Jordan.':'مستلزمات المطاعم والكافيهات والحلويات ومواد التغليف في عمّان – الجبيهة. اطلب أونلاين والدفع عند الاستلام.';
+  const v=view;if(v.view==='product'){const p=db.products.find(x=>x.id===v.pid);if(p){ttl=pn(p)+' | '+store;desc=(pd(p)||pn(p)+' – '+pcF(p.sub||p.cat))}}
+  else if(v.view==='cat'){ttl=pcF(v.sub||v.cat)+(v.sub?' – '+pcF(v.cat):'')+' | '+store}
+  else if(v.view==='all'){ttl=(v.tag?(en()?TAG_EN[v.tag]||v.tag:v.tag):(en()?'All products':'كل المنتجات'))+' | '+store}
+  else if(v.view==='search'){ttl=(en()?'Search':'بحث')+(v.q?': '+v.q:'')+' | '+store}
+  document.title=ttl;meta('meta[name="description"]','content',desc);meta('meta[property="og:title"]','content',ttl);meta('meta[property="og:description"]','content',desc);
+  meta('link[rel="canonical"]','href',location.origin+withLang(location.pathname+location.search.replace(/([?&])lang=[^&]*/,'$1')).replace(/[?&]$/,''));meta('meta[property="og:url"]','content',location.href.split('#')[0])}
+const availP=p=>p.ask||p.vars.some(inStock);
+const minPrice=p=>p.ask?Infinity:Math.min(...p.vars.map(v=>+v.price));
+const imgOf=p=>p.img||(p.vars.find(v=>v.img)||{}).img||'';
+const cardH=p=>`<a class="card" href="${L.product(p)}" data-p="${p.id}"><div class="thumb">${pic(p)}</div><div class="b"><span class="cat">${esc(pcF(p.sub||p.cat))}</span><h3>${esc(pn(p))}</h3>${p.vars.some(inStock)?'':`<span class="oos">${t('oos')}</span>`}<span class="price">${priceOf(p)}</span></div></a>`;
 function renderShop(){
-  $('#searchBox').style.display='';
-  const vis=db.products.filter(p=>p.visible);
-  const order=[...catList().map(c=>c.name),...new Set(vis.map(p=>p.cat))].filter((c,i,a)=>a.indexOf(c)===i&&vis.some(p=>p.cat===c));
-  const q=norm($('#q').value.trim());
-  const list=vis.filter(p=>(cat==='الكل'||p.cat===cat)&&(!sub||p.sub===sub)&&(!tag||(p.tags||[]).includes(tag))&&(!q||q.split(' ').every(w=>skey(p).includes(w))));
-  const avail=p=>p.ask||p.vars.some(inStock);list.sort((a,b)=>avail(b)-avail(a));const more=list.length>shown;
-  const ci=catList().find(x=>x.name===cat);const subs=cat==='الكل'?[]:[...new Set([...((ci&&ci.subs)||[]).map(x=>x.name),...vis.filter(p=>p.cat===cat).map(p=>p.sub)])].filter(x=>x&&vis.some(p=>p.cat===cat&&p.sub===x));
+  $('#searchBox').style.display='';SCAT=null;
+  const vis=db.products.filter(p=>p.visible);const T=ctree();const v=view;
+  const cover=c=>{const ci=T.find(x=>x.name===c);if(ci&&ci.img)return ci.img;const p=vis.find(p=>p.cat===c&&imgOf(p));return p?imgOf(p):''};
   const tags=[...new Set(vis.flatMap(p=>p.tags||[]))];
-  const home=cat==='الكل'&&!q&&!tag;
-  const cover=c=>{const ci=catList().find(x=>x.name===c);if(ci&&ci.img)return ci.img;const p=vis.find(p=>p.cat===c&&(p.img||p.vars.some(v=>v.img)));return p?(p.img||p.vars.find(v=>v.img).img):''};
-  const b=B();const T=en()?(b.title_en||b.title):b.title,S=en()?(b.sub_en||b.sub):b.sub,P=en()&&b.pills_en&&b.pills_en.some(Boolean)?b.pills_en:b.pills;
-  const title=tag?(en()?TAG_EN[tag]||tag:tag):cat==='الكل'?(q?(en()?'Search results':'نتائج البحث'):(en()?'All products':'كل المنتجات')):pc(sub||cat);
-  $('#app').innerHTML=`
-  <section class="hero" style="background-image:url('${b.imgs[0]||''}')">
-  <div class="ring"><div>${en()?'Since':'منذ'}<b>1991</b></div></div>
-  <div class="txt"><h1>${esc(T)}</h1><p>${esc(S)}</p>
-  <button class="cta" id="goShop">${en()?'Shop products':'تسوّق المنتجات'}</button>
-  <div class="facts">${P.filter(Boolean).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</div></div>
-  <div class="art">${b.imgs.slice(1).filter(Boolean).map(u=>`<img src="${u}" alt="">`).join('')}</div></section>
-  ${home?`<div class="shophead"><h2>${en()?'Shop by category':'تسوّق حسب القسم'}</h2></div>
-  <div class="tiles">${order.map(c=>`<button class="tile" data-cat="${esc(c)}"><span class="ti">${cover(c)?`<img src="${cover(c)}" alt="" loading="lazy" decoding="async">`:''}</span><b>${esc(pc(c))}</b><span class="count">${vis.filter(p=>p.cat===c).length} ${en()?'products':'منتج'}</span></button>`).join('')}</div>`:''}
-  ${tags.length?`<div class="occ"><span>${en()?'Shop by occasion':'حسب المناسبة'}</span>${tags.map(x=>`<button class="ochip ${x===tag?'on':''}" data-tag="${esc(x)}">${esc(en()?TAG_EN[x]||x:x)}</button>`).join('')}</div>`:''}
-  <div class="chips" id="shop">${['الكل',...order].map(c=>`<button class="chip ${c===cat&&!tag?'on':''}" data-cat="${esc(c)}">${esc(c==='الكل'?t('all'):pc(c))}</button>`).join('')}</div>
-  ${subs.length>1?`<div class="subs">${[null,...subs].map(x=>`<button class="ochip ${x===sub?'on':''}" data-sub="${x?esc(x):''}">${x?esc(pc(x)):(en()?'All in '+pc(cat):'كل '+esc(cat))}</button>`).join('')}</div>`:''}
-  <div class="shophead"><h2>${esc(title)}</h2><span class="count">${list.length} ${en()?'products':'منتج'}</span></div>
-  ${list.length?`<div class="grid">${list.slice(0,shown).map(p=>`<button class="card" data-p="${p.id}"><div class="thumb">${pic(p)}</div><div class="b"><span class="cat">${esc(pc(p.sub||p.cat))}</span><h3>${esc(pn(p))}</h3>${p.vars.some(inStock)?'':`<span class="oos">${t('oos')}</span>`}<span class="price">${priceOf(p)}</span></div></button>`).join('')}</div>${more?`<div style="text-align:center;margin-top:18px"><button class="btn alt" id="more">${en()?'Show more':'عرض المزيد'} (${list.length-shown})</button></div>`:''}`:`<div class="empty">${t('noMatch')}</div>`}`;
+  const tagName=x=>en()?TAG_EN[x]||x:x;
+  rendered=pageKey(v);setMeta();$('#logoLink').setAttribute('href',L.home());
+  const occ=tags.length?`<div class="occ"><span>${en()?'Shop by occasion':'حسب المناسبة'}</span>${tags.map(x=>`<a class="ochip ${x===v.tag?'on':''}" href="${L.all(x)}" data-nav>${esc(tagName(x))}</a>`).join('')}</div>`:'';
+  if(v.view==='notfound'){$('#app').innerHTML=`<div class="empty"><h1 style="color:var(--ink)">${en()?'Page not found':'الصفحة غير موجودة'}</h1><p>${en()?'This product or category is no longer available.':'هذا المنتج أو القسم لم يعد متوفراً.'}</p><a class="btn" href="${L.home()}" data-nav>${en()?'Go to the home page':'الصفحة الرئيسية'}</a></div>`;return}
+  if(v.view==='home'){
+    const b=B();const Tt=en()?(b.title_en||b.title):b.title,S=en()?(b.sub_en||b.sub):b.sub,P=en()&&b.pills_en&&b.pills_en.some(Boolean)?b.pills_en:b.pills;
+    const feat=c=>vis.filter(p=>p.cat===c).map((p,i)=>[p,i]).sort((x,y)=>(availP(y[0])-availP(x[0]))||(!!imgOf(y[0])-!!imgOf(x[0]))||x[1]-y[1]).slice(0,6).map(x=>x[0]);
+    $('#app').innerHTML=`
+    <section class="hero" style="background-image:url('${b.imgs[0]||''}')">
+    <div class="ring"><div>${en()?'Since':'منذ'}<b>1991</b></div></div>
+    <div class="txt"><h1>${esc(Tt)}</h1><p>${esc(S)}</p>
+    <button class="cta" id="goShop">${en()?'Shop products':'تسوّق المنتجات'}</button>
+    <div class="facts">${P.filter(Boolean).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</div></div>
+    <div class="art">${b.imgs.slice(1).filter(Boolean).map(u=>`<img src="${u}" alt="">`).join('')}</div></section>
+    <div class="shophead" id="shop"><h2>${en()?'Shop by category':'تسوّق حسب القسم'}</h2><a class="count" href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'} (${vis.length})</a></div>
+    <div class="tiles">${T.map(c=>`<a class="tile" href="${L.cat(c)}" data-nav><span class="ti">${cover(c.name)?`<img src="${cover(c.name)}" alt="" loading="lazy" decoding="async">`:''}</span><b>${esc(pcF(c.name))}</b><span class="count">${vis.filter(p=>p.cat===c.name).length} ${en()?'products':'منتج'}</span></a>`).join('')}</div>
+    ${occ}
+    ${T.map(c=>{const f=feat(c.name);return f.length?`<section class="feat"><div class="shophead"><h2>${esc(pcF(c.name))}</h2><a href="${L.cat(c)}" data-nav>${en()?'View all':'عرض الكل'} (${vis.filter(p=>p.cat===c.name).length})</a></div><div class="grid">${f.map(cardH).join('')}</div></section>`:''}).join('')}`;
+    $('#goShop').onclick=()=>$('#shop').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return}
+  // list pages: category / sub-category / all / occasion / search
+  const q=norm(v.view==='search'?v.q.trim():'');const ci=T.find(x=>x.name===v.cat);
+  let list=vis.filter(p=>(!v.cat||p.cat===v.cat)&&(!v.sub||p.sub===v.sub)&&(!v.tag||(p.tags||[]).includes(v.tag))&&(!q||q.split(' ').every(w=>skey(p).includes(w)))&&(!onlyIn||availP(p)));
+  list=list.map((p,i)=>[p,i]).sort((x,y)=>sortBy==='price-asc'?minPrice(x[0])-minPrice(y[0])||x[1]-y[1]:sortBy==='price-desc'?(minPrice(y[0])===Infinity?-1:minPrice(x[0])===Infinity?1:minPrice(y[0])-minPrice(x[0]))||x[1]-y[1]:sortBy==='name'?pn(x[0]).localeCompare(pn(y[0]),en()?'en':'ar'):(availP(y[0])-availP(x[0]))||x[1]-y[1]).map(x=>x[0]);
+  const more=list.length>shown;
+  const title=v.view==='search'?(v.q?(en()?`Results for “${v.q}”`:`نتائج البحث عن «${v.q}»`):(en()?'Search':'بحث')):v.view==='all'?(v.tag?tagName(v.tag):(en()?'All products':'كل المنتجات')):pcF(v.sub||v.cat);
+  const sep='<span aria-hidden="true">›</span>';
+  const crumbs=`<nav class="crumbs" aria-label="${en()?'Breadcrumb':'مسار الصفحة'}"><a href="${L.home()}" data-nav>${en()?'Home':'الرئيسية'}</a>${sep}${v.view==='cat'?(v.sub?`<a href="${L.cat(ci)}" data-nav>${esc(pcF(v.cat))}</a>${sep}<span aria-current="page">${esc(pcF(v.sub))}</span>`:`<span aria-current="page">${esc(pcF(v.cat))}</span>`):v.view==='all'&&v.tag?`<a href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'}</a>${sep}<span aria-current="page">${esc(title)}</span>`:`<span aria-current="page">${esc(title)}</span>`}</nav>`;
+  const subs=ci?ci.subs:[];
+  $('#app').innerHTML=`${crumbs}
+  <div class="chips">${[null,...T].map(c=>`<a class="chip ${c?(c.name===v.cat?'on':''):(v.view==='all'&&!v.tag?'on':'')}" href="${c?L.cat(c):L.all()}" data-nav>${esc(c?pcF(c.name):t('all'))}</a>`).join('')}</div>
+  <div class="pagehead"><h1>${esc(title)}</h1><span class="count">${list.length} ${en()?'products':'منتج'}</span></div>
+  ${v.view==='cat'&&subs.length>1?`<div class="subs">${[null,...subs].map(x=>`<a class="ochip ${(x?x.name:null)===v.sub?'on':''}" href="${L.cat(ci,x)}" data-nav>${x?esc(pcF(x.name)):(en()?'All in '+esc(pcF(v.cat)):'كل '+esc(v.cat))}</a>`).join('')}</div>`:''}
+  ${v.view==='all'?occ:''}
+  <div class="tools"><label><input type="checkbox" id="onlyIn" ${onlyIn?'checked':''}> ${en()?'In stock only':'المتوفر فقط'}</label>
+  <label>${en()?'Sort by':'الترتيب'} <select id="sortBy">${[['stock',en()?'Available first':'المتوفر أولاً'],['price-asc',en()?'Price: low to high':'السعر: من الأقل'],['price-desc',en()?'Price: high to low':'السعر: من الأعلى'],['name',en()?'Name':'الاسم']].map(([k,n])=>`<option value="${k}" ${k===sortBy?'selected':''}>${n}</option>`).join('')}</select></label></div>
+  ${list.length?`<div class="grid">${list.slice(0,shown).map(cardH).join('')}</div>${more?`<div style="text-align:center;margin-top:18px"><button class="btn alt" id="more">${en()?'Show more':'عرض المزيد'} (${list.length-shown})</button></div>`:''}`:`<div class="empty">${t('noMatch')}${v.view!=='all'?`<br><br><a class="btn alt" href="${L.all()}" data-nav>${en()?'See all products':'شوف كل المنتجات'}</a>`:''}</div>`}`;
   $('#more')&&($('#more').onclick=()=>{shown+=96;const y=scrollY;renderShop();scrollTo(0,y)});
-  $('#goShop').onclick=()=>$('#shop').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  $('#onlyIn').onchange=e=>{onlyIn=e.target.checked;shown=48;renderShop()};
+  $('#sortBy').onchange=e=>{sortBy=e.target.value;shown=48;renderShop()};
 }
 function openProduct(id){
   const p=db.products.find(x=>x.id===id);let vi=p.vars.findIndex(inStock);if(vi<0)vi=0;let q=1;
@@ -847,15 +903,15 @@ setInterval(()=>{if(authed&&document.visibilityState==='visible')refreshOrders()
 document.addEventListener('visibilitychange',()=>{if(authed&&document.visibilityState==='visible')refreshOrders()});
 /* ---------- shell ---------- */
 let lastFocus=null;function show(sel){lastFocus=document.activeElement;$(sel).classList.add('on');$('#veil').classList.add('on');setTimeout(()=>$(sel).querySelector('.x')?.focus({preventScroll:true}),30)}
-function close(){const was=$('#modal.on,#cart.on');['#modal','#cart','#veil'].forEach(s=>$(s).classList.remove('on'));if(was&&lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true})}
+function close(keepUrl){const was=$('#modal.on,#cart.on');const wasP=!!$('#modal.on');['#modal','#cart','#veil'].forEach(s=>$(s).classList.remove('on'));if(was&&lastFocus&&document.contains(lastFocus))lastFocus.focus({preventScroll:true});
+  if(keepUrl!==true&&wasP&&location.hash!=='#admin'&&view.view==='product'){if(history.state&&history.state.pushed){pendingBack=new Promise(r=>addEventListener('popstate',()=>setTimeout(r),{once:true}));history.back()}else{const p=db.products.find(x=>x.id===view.pid);const T=ctree();const c=p&&T.find(x=>x.name===p.cat);history.replaceState({},'',c?L.cat(c):L.home());readURL();setMeta()}}}
 const setName=()=>{$('#storeName').textContent=en()?(db.settings.store_en||'Said Nazzal Trading'):db.settings.store;$('#logoImg').src=B().logo||'photos/b-logo.jpg'};
-function route(){close();const a=location.hash==='#admin';setAppMode(a);document.documentElement.dir=a||!en()?'rtl':'ltr';$('#langBtnW').style.display=a?'none':'';$('#curBtn').style.display=a?'none':'';$('#curBtn').textContent=cur==='USD'?'$ USD':(en()?'JD':'د.أ');$('#curBtn').title=cur==='USD'?(en()?'Show prices in Jordanian dinar':'الأسعار بالدينار'):(en()?'Show prices in US dollars':'الأسعار بالدولار');$('#adminBtn').textContent=a?t('store'):t('panel');$('#cartBtn').style.display=a?'none':'';$('#adminBtnW').style.display=a||authed?'':'none';a?renderAdmin():renderShop()}
+function route(){close(true);const a=location.hash==='#admin';if(!a)readURL();setAppMode(a);document.documentElement.dir=a||!en()?'rtl':'ltr';$('#langBtnW').style.display=a?'none':'';$('#curBtn').style.display=a?'none':'';$('#curBtn').textContent=cur==='USD'?'$ USD':(en()?'JD':'د.أ');$('#curBtn').title=cur==='USD'?(en()?'Show prices in Jordanian dinar':'الأسعار بالدينار'):(en()?'Show prices in US dollars':'الأسعار بالدولار');$('#adminBtn').textContent=a?t('store'):t('panel');$('#cartBtn').style.display=a?'none':'';$('#adminBtnW').style.display=a||authed?'':'none';if(a)renderAdmin();else{renderShop();if(view.view==='product')openProduct(view.pid)}}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-nav],a[data-p]');if(!a||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+  e.preventDefault();if(location.hash==='#admin')return;if(a.dataset.p)openProductNav(a.dataset.p);else{if($('#modal.on,#cart.on'))close(true);go(a.getAttribute('href'))}});
 document.addEventListener('click',e=>{const t=e.target.closest('button,[data-close]');if(!t)return;const d=t.dataset;
   if('close' in d)close();
-  else if(d.cat){cat=d.cat;sub=null;tag=null;shown=48;renderShop();if(t.classList.contains('tile'))$('#shop').scrollIntoView()}
-  else if('sub' in d){sub=d.sub||null;shown=48;renderShop()}
-  else if(d.tag){tag=tag===d.tag?null:d.tag;cat='الكل';sub=null;shown=48;renderShop();$('#shop').scrollIntoView()}
-  else if(d.p)openProduct(d.p);
+  else if(d.p)openProductNav(d.p);
   else if(d.cq){const c=cart[+d.cq];const p=db.products.find(x=>x.id===c.pid);const mx=p?maxQ(p.vars[c.vi]):Infinity;if(+d.d>0&&c.q>=mx){toast(UI.maxIn[en()?1:0]+' '+mx);return}c.q+= +d.d;if(c.q<1)cart.splice(+d.cq,1);keepCart();updCount();renderCart()}
   else if(d.rm){cart.splice(+d.rm,1);keepCart();updCount();renderCart()}
   else if(d.tab){adminTab=d.tab;renderAdmin();if(d.tab==='orders')refreshOrders()}
@@ -872,9 +928,12 @@ $('#veil').addEventListener('click',close);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
 $('#cartBtn').addEventListener('click',()=>{renderCart();show('#cart')});
 $('#curBtn').addEventListener('click',()=>{cur=cur==='USD'?'JOD':'USD';try{localStorage.setItem('sn-cur',cur)}catch(e){};route();if($('#cart.on'))renderCart()});
-$('#langBtnW').addEventListener('click',()=>{lang=en()?'ar':'en';try{localStorage.setItem('sn-lang',lang)}catch(e){};applyLang();route()});
+$('#langBtnW').addEventListener('click',()=>{lang=en()?'ar':'en';try{localStorage.setItem('sn-lang',lang)}catch(e){};applyLang();if(location.hash!=='#admin')history.replaceState(history.state,'',withLang(location.pathname+location.search));route()});
 $('#adminBtnW').addEventListener('click',()=>{location.hash=location.hash==='#admin'?'':'admin'});
-$('#q').addEventListener('input',()=>{shown=48;renderShop()});
+$('#q').addEventListener('input',async()=>{if(location.hash==='#admin')return;await settle();const q=$('#q').value;const url=L.search(q.trim());if(view.view==='search')history.replaceState({},'',url);else history.pushState({},'',url);readURL();shown=48;renderShop()});
+addEventListener('popstate',()=>{if(location.hash==='#admin')return;readURL();const k=pageKey(view);
+  if(view.view==='product'){if(k!==rendered){renderShop()}else setMeta();openProduct(view.pid);return}
+  if($('#modal.on,#cart.on'))close(true);if(k!==rendered){shown=48;renderShop()}else setMeta()});
 window.addEventListener('hashchange',route);
 let deferredInstall=null;
 const standalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
