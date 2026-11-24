@@ -69,13 +69,13 @@ alter table public.inv_moves   enable row level security;
 alter table public.inv_imports enable row level security;
 
 drop policy if exists "inv_users read" on public.inv_users;
-create policy "inv_users read" on public.inv_users for select using (user_id = auth.uid() or public.inv_role() = 'owner');
+create policy "inv_users read" on public.inv_users for select using (user_id = (select auth.uid()) or (select public.inv_role()) = 'owner');
 drop policy if exists "inv_items read" on public.inv_items;
-create policy "inv_items read" on public.inv_items for select using (public.inv_role() is not null);
+create policy "inv_items read" on public.inv_items for select using ((select public.inv_role()) is not null);
 drop policy if exists "inv_moves read" on public.inv_moves;
-create policy "inv_moves read" on public.inv_moves for select using (public.inv_role() is not null);
+create policy "inv_moves read" on public.inv_moves for select using ((select public.inv_role()) is not null);
 drop policy if exists "inv_imports read" on public.inv_imports;
-create policy "inv_imports read" on public.inv_imports for select using (public.inv_role() = 'owner');
+create policy "inv_imports read" on public.inv_imports for select using ((select public.inv_role()) = 'owner');
 -- No insert/update/delete policies: all changes go through the functions below.
 
 -- ---------- website stock follows the stock system ----------

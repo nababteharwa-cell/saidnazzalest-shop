@@ -20,7 +20,7 @@ create table if not exists public.panel_users (
 );
 alter table public.panel_users enable row level security;
 drop policy if exists "panel_users: self or owner reads" on public.panel_users;
-create policy "panel_users: self or owner reads" on public.panel_users for select using (user_id = auth.uid() or public.is_admin());
+create policy "panel_users: self or owner reads" on public.panel_users for select using (user_id = (select auth.uid()) or (select public.is_admin()));
 -- written only by the server function (secret key), never from the browser
 
 create or replace function public.has_perm(p text) returns boolean
@@ -31,26 +31,26 @@ $$;
 -- products: everyone reads visible ones; team with products/stock/orders rights reads all; products/stock may write
 drop policy if exists "products: anyone reads visible" on public.products;
 create policy "products: anyone reads visible" on public.products for select
-  using (coalesce((data->>'visible')::boolean, true) or public.has_perm('products') or public.has_perm('stock') or public.has_perm('orders'));
+  using (coalesce((data->>'visible')::boolean, true) or (select public.has_perm('products')) or (select public.has_perm('stock')) or (select public.has_perm('orders')));
 drop policy if exists "products: admin writes" on public.products;
 drop policy if exists "products: team writes" on public.products;
 create policy "products: team writes" on public.products for all
-  using (public.has_perm('products') or public.has_perm('stock')) with check (public.has_perm('products') or public.has_perm('stock'));
+  using ((select public.has_perm('products')) or (select public.has_perm('stock'))) with check ((select public.has_perm('products')) or (select public.has_perm('stock')));
 
 -- orders
 drop policy if exists "orders: admin only" on public.orders;
 drop policy if exists "orders: team reads" on public.orders;
 drop policy if exists "orders: team updates" on public.orders;
 drop policy if exists "orders: owner deletes" on public.orders;
-create policy "orders: team reads" on public.orders for select using (public.has_perm('orders') or public.has_perm('commission'));
-create policy "orders: team updates" on public.orders for update using (public.has_perm('orders')) with check (public.has_perm('orders'));
-create policy "orders: owner deletes" on public.orders for delete using (public.is_admin());
+create policy "orders: team reads" on public.orders for select using ((select public.has_perm('orders')) or (select public.has_perm('commission')));
+create policy "orders: team updates" on public.orders for update using ((select public.has_perm('orders'))) with check ((select public.has_perm('orders')));
+create policy "orders: owner deletes" on public.orders for delete using ((select public.is_admin()));
 
 -- settings: products right may change banner + categories; settings right may change the rest except markup/commission
 drop policy if exists "settings: admin writes" on public.settings;
 drop policy if exists "settings: team writes" on public.settings;
 create policy "settings: team writes" on public.settings for all
-  using (public.has_perm('settings') or public.has_perm('products')) with check (public.has_perm('settings') or public.has_perm('products'));
+  using ((select public.has_perm('settings')) or (select public.has_perm('products'))) with check ((select public.has_perm('settings')) or (select public.has_perm('products')));
 create or replace function public.settings_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare k text; allowed text[];
@@ -71,19 +71,19 @@ create trigger settings_guard before update on public.settings for each row exec
 
 -- history and backups
 drop policy if exists "products_history admin read" on public.products_history;
-create policy "products_history admin read" on public.products_history for select using (public.has_perm('history'));
+create policy "products_history admin read" on public.products_history for select using ((select public.has_perm('history')));
 
 -- photos
 drop policy if exists "photos: admin uploads" on storage.objects;
-create policy "photos: admin uploads" on storage.objects for insert with check (bucket_id = 'photos' and public.has_perm('products'));
+create policy "photos: admin uploads" on storage.objects for insert with check (bucket_id = 'photos' and (select public.has_perm('products')));
 drop policy if exists "photos: admin changes" on storage.objects;
-create policy "photos: admin changes" on storage.objects for update using (bucket_id = 'photos' and public.has_perm('products'));
+create policy "photos: admin changes" on storage.objects for update using (bucket_id = 'photos' and (select public.has_perm('products')));
 drop policy if exists "photos: admin deletes" on storage.objects;
-create policy "photos: admin deletes" on storage.objects for delete using (bucket_id = 'photos' and public.has_perm('products'));
+create policy "photos: admin deletes" on storage.objects for delete using (bucket_id = 'photos' and (select public.has_perm('products')));
 
 -- owners can see who the other owners are (for the users screen)
 drop policy if exists "admins: see self" on public.admins;
-create policy "admins: see self" on public.admins for select using (user_id = auth.uid() or public.is_admin());
+create policy "admins: see self" on public.admins for select using (user_id = (select auth.uid()) or (select public.is_admin()));
 
 -- linking website sizes to Trust items: stock-app owner who can edit products
 create or replace function public.inv_link(pid text, vi int, sku text)
