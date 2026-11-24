@@ -50,6 +50,10 @@
       "destination": "/api/render?p="
     },
     {
+      "source": "/shop-o6bwd2u8fe/",
+      "destination": "/api/render?base=private&p="
+    },
+    {
       "source": "/shop-o6bwd2u8fe",
       "destination": "/api/render?base=private&p="
     },
