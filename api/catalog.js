@@ -6,7 +6,7 @@ const KEY = process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_-k0Tgo2wzXAp
 const H = () => ({ apikey: KEY, 'Content-Type': 'application/json' });
 
 async function viaTable() {
-  const page = from => fetch(URL_ + '/rest/v1/products?select=data&order=sort.asc,id.asc', { headers: { ...H(), Range: from + '-' + (from + 999) } })
+  const page = from => fetch(URL_ + '/rest/v1/products?select=data&order=sort.asc,id.asc&limit=1000&offset=' + from, { headers: H() })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   const st = fetch(URL_ + '/rest/v1/settings?select=data&id=eq.1', { headers: H() }).then(r => r.json());
   let rows = [], from = 0;
