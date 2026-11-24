@@ -223,15 +223,40 @@ let db={settings:{zones:[],banner:JSON.parse(JSON.stringify(DEFAULT.settings.ban
 try{cart=JSON.parse(localStorage.getItem('sn-cart')||'[]')}catch(e){}
 const keepCart=()=>{try{localStorage.setItem('sn-cart',JSON.stringify(cart))}catch(e){}};
 const fail=(m,e)=>{console.error(e);toast(m)};
-async function loadShop(){
-  if(!sb){$('#app').innerHTML='<div class="empty">الموقع غير مربوط بقاعدة البيانات بعد (config.js).</div>';return false}
-  const [s,p]=await Promise.all([sb.from('settings').select('data').eq('id',1).maybeSingle(),allProducts()]);
-  if(s.error||p.error){$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاول مرة ثانية.</div>';console.error(s.error||p.error);return false}
-  if(s.data)db.settings=s.data.data;db.products=p.data.map(r=>r.data);
+/* Catalogue loading, fastest first: copy saved on this device (instant) → Vercel edge cache (/api/catalog)
+   → one database call (shop_catalog) → page-by-page in parallel (if 13-fast-catalog.sql has not been run yet). */
+const CAT_KEY='sn-cat-v1';
+const readCat=()=>{try{const c=JSON.parse(localStorage.getItem(CAT_KEY)||'null');return c&&c.products&&c.settings&&Date.now()-c.saved<7*864e5?c:null}catch(e){return null}};
+const saveCat=c=>{try{localStorage.setItem(CAT_KEY,JSON.stringify({...c,saved:Date.now()}))}catch(e){try{localStorage.removeItem(CAT_KEY)}catch(x){}}};
+const fixP=p=>({desc:'',desc_en:'',tags:[],img:'',...p});
+async function fetchCat(fresh){
+  if(!fresh){try{const ctl=new AbortController();const tm=setTimeout(()=>ctl.abort(),8000);const r=await fetch('/api/catalog',{signal:ctl.signal});clearTimeout(tm);
+    if(r.ok){const j=await r.json();if(j&&Array.isArray(j.products))return j}}catch(e){}}
+  try{const r=await sb.rpc('shop_catalog');if(r&&!r.error&&r.data&&Array.isArray(r.data.products))return r.data}catch(e){}
+  const [st,pr]=await Promise.all([sb.from('settings').select('data').eq('id',1).maybeSingle(),allProducts()]);
+  if(st.error||pr.error)throw st.error||pr.error;
+  return{settings:st.data?st.data.data:null,products:pr.data.map(x=>x.data).filter(x=>x.visible!==false)}}
+function applyCat(c){if(c.settings)db.settings=c.settings;db.products=c.products.map(fixP);
   cart=cart.filter(c=>{const x=db.products.find(p=>p.id===c.pid);if(!x||x.ask||!x.visible)return false;
     if(c.label!=null&&(!x.vars[c.vi]||x.vars[c.vi].label!==c.label)){const k=x.vars.findIndex(v=>v.label===c.label);if(k<0)return false;c.vi=k;c.k=x.id+'|'+k}
-    const v=x.vars[c.vi];if(!v)return false;if(c.label==null)c.label=v.label;c.q=Math.min(c.q,maxQ(v));return c.q>0});keepCart();return true}
-async function allProducts(){const out=[];for(let from=0;;from+=1000){const r=await sb.from('products').select('data,sort').order('sort').order('id').range(from,from+999);if(r.error)return{error:r.error};out.push(...r.data);if(r.data.length<1000)break}return{data:out}}
+    const v=x.vars[c.vi];if(!v)return false;if(c.label==null)c.label=v.label;c.q=Math.min(c.q,maxQ(v));return c.q>0});keepCart()}
+async function loadShop(fresh){
+  if(!sb){$('#app').innerHTML='<div class="empty">الموقع غير مربوط بقاعدة البيانات بعد (config.js).</div>';return false}
+  const cached=fresh?null:readCat();
+  if(cached){applyCat(cached);
+    fetchCat(false).then(c=>{saveCat(c);if(authed)return;const same=JSON.stringify(c.products)===JSON.stringify(cached.products)&&JSON.stringify(c.settings)===JSON.stringify(cached.settings);if(same)return;
+      applyCat(c);updCount();if(location.hash!=='#admin'&&!document.querySelector('.modal.on,.drawer.on')&&window.scrollY<300)renderShop()}).catch(()=>{});
+    return true}
+  try{const c=await fetchCat(fresh);applyCat(c);saveCat(c);return true}
+  catch(e){console.error(e);$('#app').innerHTML='<div class="empty">تعذّر تحميل المتجر. حاول مرة ثانية.</div>';return false}}
+async function allProducts(){const q=()=>sb.from('products').select('data,sort').order('sort').order('id');
+  const r0=await q().range(0,999);if(r0.error)return{error:r0.error};if(r0.data.length<1000)return{data:r0.data};
+  const c=await sb.from('products').select('id',{count:'exact',head:true});const total=c.count||0;const pages=[];
+  for(let from=1000;from<Math.max(total,2000);from+=1000)pages.push(q().range(from,from+999));
+  const rs=await Promise.all(pages);const bad=rs.find(r=>r.error);if(bad)return{error:bad.error};
+  const out=[...r0.data,...rs.flatMap(r=>r.data)];
+  if(rs.length&&rs[rs.length-1].data.length===1000){for(let from=1000+rs.length*1000;;from+=1000){const r=await q().range(from,from+999);if(r.error)return{error:r.error};out.push(...r.data);if(r.data.length<1000)break}}
+  return{data:out}}
 const rowToOrder=r=>({id:r.code,dbid:r.id,date:r.created_at,status:r.status,...r.customer,items:r.items,sub:+r.sub,fee:+r.fee,total:+r.total});
 const BASE=new Map();const snap=ps=>ps.forEach(p=>BASE.set(p.id,new Map(p.vars.map(v=>[v.label,v.stock??null]))));
 async function reloadAllProducts(){const p=await allProducts();if(!p.error){db.products.splice(0,db.products.length,...p.data.map(r=>r.data));BASE.clear();snap(db.products)}}
@@ -407,12 +432,12 @@ async function placeOrder(items,sub,fee,zone){
   const r=await sb.rpc('place_order',{payload:{zone:zi,customer:cust,items:items.map(i=>({pid:i.pid,vi:i.vi,q:i.q}))}});
   if(r.error){btn.disabled=false;btn.textContent=t('confirm');const m=(r.error.message||'');
     toast(m.includes('out_of_stock')?(en()?'Some items are out of stock – please adjust your cart.':'في منتجات كميتها خلصت – عدّل السلة.'):m.includes('too_many')?(en()?'Too many orders in a short time – please wait a few minutes or contact us on WhatsApp.':'طلبات كثيرة بوقت قصير – انتظر دقائق أو تواصل معنا على واتساب.'):m.includes('too_long')?(en()?'Some fields are too long – please shorten the address or notes.':'بعض الحقول طويلة جداً – اختصر العنوان أو الملاحظات.'):(en()?'Order not sent – please try again.':'الطلب ما انبعث – جرّب مرة ثانية.'));console.error(r.error);
-    if(m.includes('out_of_stock')||m.includes('unavailable')){await loadShop();renderCart()}return}
+    if(m.includes('out_of_stock')||m.includes('unavailable')){await loadShop(true);renderCart()}return}
   const o={...r.data,...cust};cart=[];keepCart();updCount();
   const txt=`${t('newOrder')} ${o.code}\n${items.map(i=>`• ${pn(i.p)} (${trW(i.v.label)}) × ${i.q}`).join('\n')}\n${t('total')}: ${fmtBoth(o.total)}${intl?' + '+t('ship'):''}\n${t('name')}: ${o.name}\n${t('phone')}: ${o.phone}\n${intl?t('country')+': '+o.country+' – '+o.city+'\n':''}${t('addr')}: ${zn(zone)} – ${o.addr}`;
   $('#cartBody').innerHTML=`<div class="empty" style="color:var(--ink)"><h2 style="margin-top:0">${t('got')}</h2><p>${t('orderNo')} <b>${o.code}</b><br>${t('total')} ${fmtBoth(o.total)} – ${intl?t('shipLater'):t('codShort')}</p><a class="wa" href="${waLink(txt)}" target="_blank" rel="noopener">${t('sendWa')}</a><p class="note">${t('optional')}</p></div>`;
   if(db.settings.waMode==='auto'){$('#cartBody .note').textContent=en()?'Opening WhatsApp… press Send to complete your order.':'جاري فتح واتساب… اضغط إرسال لإتمام طلبك.';setTimeout(()=>{location.href=waLink(txt)},1200)}
-  loadShop().then(()=>{if(location.hash!=='#admin')renderShop()});
+  loadShop(true).then(()=>{if(location.hash!=='#admin')renderShop()});
 }
 
 /* ---------- ADMIN ---------- */
