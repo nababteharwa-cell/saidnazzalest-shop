@@ -111,7 +111,7 @@ begin
               where i.active and i.qty <> 0 and not exists (select 1 from inv_ct c where c.item_id = i.id)
                 and (jsonb_typeof(zero_items) is distinct from 'array'
                      or i.id in (select (value #>> '{}')::bigint from jsonb_array_elements(zero_items))) loop
-      insert into inv_moves (item_id, delta, kind, channel, ref, note) values (t.id, -t.qty, 'count', 'count', 'C' || session, left('جرد: ' || s.name || ' – ما انلاقى', 500));
+      insert into inv_moves (item_id, delta, kind, channel, ref, note) values (t.id, -t.qty, 'count', 'count', 'C' || session, left('جرد: ' || s.name || ' – لم يُعثر عليه', 500));
       z := z + 1; val := val - t.qty * coalesce(t.price, 0);
     end loop;
   end if;
