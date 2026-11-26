@@ -73,6 +73,15 @@ header{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:sat
 .chip:hover{color:var(--ink)}
 .chip.on{color:var(--navy);border-color:var(--gold);font-weight:700}
 #shop{scroll-margin-top:80px}
+.segs{margin:6px 0 18px}.segrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:10px}
+.seg{background:#fff;border-radius:var(--r);padding:10px 10px 14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 0 var(--line);color:var(--ink);text-decoration:none;border-top:4px solid var(--navy)}
+.seg:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}.seg:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+.seg .sp{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:4px;aspect-ratio:16/10;overflow:hidden;margin-bottom:8px}
+.seg .sp img{width:100%;height:100%;min-height:0;object-fit:cover;border-radius:8px;background:var(--bg)}.seg .sp img:first-child{grid-row:1/3}
+.seg b{font-size:16px;line-height:1.35}.seg .sd{font-size:13px;color:var(--mute);line-height:1.5}.seg .count{font-size:13px;color:var(--navy);font-weight:600;margin-top:auto;padding-top:4px}
+.segd{color:var(--mute);margin:-2px 0 12px;max-width:70ch}
+@media(max-width:1100px){.segrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.segrow{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:6px;scrollbar-width:none}.seg{flex:0 0 66%;scroll-snap-align:start}}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:10px 0 26px}
 .tile{background:#fff;border:0;border-radius:var(--r);padding:12px;text-align:start;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 0 var(--line)}
 .tile:hover{box-shadow:0 10px 30px #1B2D5B1f}
@@ -354,16 +363,17 @@ if(SBASE&&!location.pathname.startsWith(RT.PRIVATE+'/'))history.replaceState(his
 {const sp=new URLSearchParams(location.search);const L=sp.get('lang');if(L==='en'||L==='ar'){lang=L;try{localStorage.setItem('sn-lang',lang)}catch(e){}}}
 const PATHS=RT.paths(SBASE);
 const withLang=u=>{const [p,h]=u.split('#');const url=new URL(p,location.origin);if(en())url.searchParams.set('lang','en');else url.searchParams.delete('lang');return url.pathname+url.search+(h?'#'+h:'')};
-const L={home:p=>withLang(PATHS.home()),all:tg=>withLang(PATHS.all(tg)),cat:(c,sx)=>withLang(PATHS.cat(c,sx)),search:q=>withLang(PATHS.search(q)),product:p=>withLang(PATHS.product(p))};
+const L={home:p=>withLang(PATHS.home()),all:tg=>withLang(PATHS.all(tg)),cat:(c,sx)=>withLang(PATHS.cat(c,sx)),search:q=>withLang(PATHS.search(q)),seg:(sg,c)=>withLang(PATHS.seg(sg,c)),product:p=>withLang(PATHS.product(p))};
 let shown=48,view={view:'home'},sortBy='stock',onlyIn=false,rendered='';const SKEY=new WeakMap();
 const skey=p=>{let k=SKEY.get(p);if(!k){k=norm([p.name,p.desc,p.cat,p.sub,p.name_en,p.desc_en,p.cat_en,p.sub_en,...p.vars.map(v=>v.label)].filter(Boolean).join(' '));SKEY.set(p,k)}return k};
 const ctree=()=>RT.tree(db.settings,db.products);
 function readURL(){const r=RT.parse(location.pathname.slice(SBASE.length));const sp=new URLSearchParams(location.search);const T=ctree();
-  view={view:r.view,cat:null,sub:null,tag:sp.get('tag')||null,q:sp.get('q')||'',pid:r.pid||null};
+  view={view:r.view,cat:null,sub:null,seg:null,tag:sp.get('tag')||null,q:sp.get('q')||'',pid:r.pid||null};
+  if(r.view==='seg'){const sg=RT.findSeg(r.segKey);if(!sg)view.view='notfound';else{view.seg=sg;const cs=sp.get('c');if(cs){const c=RT.findCat(T,cs);if(c&&Object.keys(sg.pick).includes(c.name))view.cat=c.name;else view.view='notfound'}}}
   if(r.view==='cat'){const c=RT.findCat(T,r.catSlug);if(!c)view.view='notfound';else{view.cat=c.name;if(r.subSlug){const x=RT.findSub(c,r.subSlug);if(x)view.sub=x.name;else view.view='notfound'}}}
   if(r.view==='product'){const p=db.products.find(x=>x.id===r.pid&&x.visible!==false);if(!p)view.view='notfound';else view.cat=p.cat}
   if(r.view!=='search'&&$('#q'))$('#q').value='';else if($('#q')&&document.activeElement!==$('#q'))$('#q').value=view.q}
-const pageKey=v=>v.view==='product'?((history.state&&history.state.under)||'cat|'+v.cat+'||'):v.view+'|'+(v.cat||'')+'|'+(v.sub||'')+'|'+(v.tag||'')+'|'+(v.q||'');
+const pageKey=v=>v.view==='product'?((history.state&&history.state.under)||'cat|'+v.cat+'||'):v.view+'|'+(v.seg?v.seg.key:'')+'|'+(v.cat||'')+'|'+(v.sub||'')+'|'+(v.tag||'')+'|'+(v.q||'');
 let pendingBack=null;const settle=async()=>{if(pendingBack){await pendingBack;pendingBack=null}};
 async function go(url,{replace=false,keepScroll=false}={}){await settle();history[replace?'replaceState':'pushState']({},'',url);readURL();shown=48;renderShop();if(!keepScroll)scrollTo(0,0)}
 async function openProductNav(id){await settle();const p=db.products.find(x=>x.id===id);if(!p)return;history.pushState({under:rendered,pushed:1},'',L.product(p));readURL();setMeta();openProduct(id)}
@@ -372,6 +382,7 @@ const pcF=c=>en()?(catEnMemo()[c]||c):c;
 const meta=(sel,attr,val)=>{let el=document.head.querySelector(sel);if(!el){el=document.createElement(sel.startsWith('link')?'link':'meta');const m=sel.match(/\[(\w+)="([^"]+)"\]/);el.setAttribute(m[1],m[2]);document.head.appendChild(el)}el.setAttribute(attr,val)};
 function setMeta(){const store=en()?(db.settings.store_en||'Said Nazzal Trading'):(db.settings.store||'سعيد نزال التجارية');let ttl=store,desc=en()?'Restaurant, café, pastry and packaging supplies in Amman – Jubeiha. Order online, cash on delivery in Jordan.':'مستلزمات المطاعم والكافيهات والحلويات ومواد التغليف في عمّان – الجبيهة. اطلب أونلاين والدفع عند الاستلام.';
   const v=view;if(v.view==='product'){const p=db.products.find(x=>x.id===v.pid);if(p){ttl=pn(p)+' | '+store;desc=(pd(p)||pn(p)+' – '+pcF(p.sub||p.cat))}}
+  else if(v.view==='seg'){const sn=en()?v.seg.name_en:v.seg.name;ttl=(v.cat?pcF(v.cat)+' – ':'')+sn+' | '+store;desc=(en()?'Supplies for '+v.seg.name_en.toLowerCase()+': '+v.seg.desc_en+'. ':'مستلزمات '+v.seg.name+': '+v.seg.desc+'. ')+desc}
   else if(v.view==='cat'){ttl=pcF(v.sub||v.cat)+(v.sub?' – '+pcF(v.cat):'')+' | '+store}
   else if(v.view==='all'){ttl=(v.tag?(en()?TAG_EN[v.tag]||v.tag:v.tag):(en()?'All products':'كل المنتجات'))+' | '+store}
   else if(v.view==='search'){ttl=(en()?'Search':'بحث')+(v.q?': '+v.q:'')+' | '+store}
@@ -381,6 +392,7 @@ const availP=p=>p.ask||p.vars.some(inStock);
 const minPrice=p=>p.ask?Infinity:Math.min(...p.vars.map(v=>+v.price));
 const imgOf=p=>p.img||(p.vars.find(v=>v.img)||{}).img||'';
 const cardH=p=>`<a class="card" href="${L.product(p)}" data-p="${p.id}"><div class="thumb">${pic(p)}</div><div class="b"><span class="cat">${esc(pcF(p.sub||p.cat))}</span><h3>${esc(pn(p))}</h3>${p.vars.some(inStock)?'':`<span class="oos">${t('oos')}</span>`}<span class="price">${priceOf(p)}</span></div></a>`;
+const segPics=(sg,cover)=>[...new Set(Object.keys(sg.pick).map(cover).filter(Boolean))].slice(0,3);
 function renderShop(){
   $('#searchBox').style.display='';SCAT=null;
   const vis=db.products.filter(p=>p.visible);const T=ctree();const v=view;
@@ -400,23 +412,27 @@ function renderShop(){
     <button class="cta" id="goShop">${en()?'Shop products':'تسوّق المنتجات'}</button>
     <div class="facts">${P.filter(Boolean).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</div></div>
     <div class="art">${b.imgs.slice(1).filter(Boolean).map(u=>`<img src="${u}" alt="">`).join('')}</div></section>
-    <div class="shophead" id="shop"><h2>${en()?'Shop by category':'تسوّق حسب القسم'}</h2><a class="count" href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'} (${vis.length})</a></div>
+    <section class="segs" id="shop"><div class="shophead"><h2>${en()?'Shop by business type':'تسوّق حسب نوع نشاطك'}</h2></div>
+    <div class="segrow">${RT.SEGMENTS.map(sg=>{const ps=vis.filter(p=>RT.inSeg(sg,p));const pics=segPics(sg,cover);return `<a class="seg" href="${L.seg(sg)}" data-nav><span class="sp">${pics.map(u=>`<img src="${u}" alt="" loading="lazy" decoding="async">`).join('')}</span><b>${esc(en()?sg.name_en:sg.name)}</b><span class="sd">${esc(en()?sg.desc_en:sg.desc)}</span><span class="count">${ps.length} ${en()?'products':'منتج'}</span></a>`}).join('')}</div></section>
+    <div class="shophead"><h2>${en()?'Shop by category':'تسوّق حسب القسم'}</h2><a class="count" href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'} (${vis.length})</a></div>
     <div class="tiles">${T.map(c=>`<a class="tile" href="${L.cat(c)}" data-nav><span class="ti">${cover(c.name)?`<img src="${cover(c.name)}" alt="" loading="lazy" decoding="async">`:''}</span><b>${esc(pcF(c.name))}</b><span class="count">${vis.filter(p=>p.cat===c.name).length} ${en()?'products':'منتج'}</span></a>`).join('')}</div>
     ${occ}
     ${T.map(c=>{const f=feat(c.name);return f.length?`<section class="feat"><div class="shophead"><h2>${esc(pcF(c.name))}</h2><a href="${L.cat(c)}" data-nav>${en()?'View all':'عرض الكل'} (${vis.filter(p=>p.cat===c.name).length})</a></div><div class="grid">${f.map(cardH).join('')}</div></section>`:''}).join('')}`;
     $('#goShop').onclick=()=>$('#shop').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});return}
   // list pages: category / sub-category / all / occasion / search
   const q=norm(v.view==='search'?v.q.trim():'');const ci=T.find(x=>x.name===v.cat);
-  let list=vis.filter(p=>(!v.cat||p.cat===v.cat)&&(!v.sub||p.sub===v.sub)&&(!v.tag||(p.tags||[]).includes(v.tag))&&(!q||q.split(' ').every(w=>skey(p).includes(w)))&&(!onlyIn||availP(p)));
+  let list=vis.filter(p=>(!v.seg||RT.inSeg(v.seg,p))&&(!v.cat||p.cat===v.cat)&&(!v.sub||p.sub===v.sub)&&(!v.tag||(p.tags||[]).includes(v.tag))&&(!q||q.split(' ').every(w=>skey(p).includes(w)))&&(!onlyIn||availP(p)));
+  if(v.seg&&!v.cat)list=list.map((p,i)=>[p,i]).sort((x,y)=>RT.segRank(v.seg,x[0])-RT.segRank(v.seg,y[0])||x[1]-y[1]).map(x=>x[0]);
   list=list.map((p,i)=>[p,i]).sort((x,y)=>sortBy==='price-asc'?minPrice(x[0])-minPrice(y[0])||x[1]-y[1]:sortBy==='price-desc'?(minPrice(y[0])===Infinity?-1:minPrice(x[0])===Infinity?1:minPrice(y[0])-minPrice(x[0]))||x[1]-y[1]:sortBy==='name'?pn(x[0]).localeCompare(pn(y[0]),en()?'en':'ar'):(availP(y[0])-availP(x[0]))||x[1]-y[1]).map(x=>x[0]);
   const more=list.length>shown;
-  const title=v.view==='search'?(v.q?(en()?`Results for “${v.q}”`:`نتائج البحث عن «${v.q}»`):(en()?'Search':'بحث')):v.view==='all'?(v.tag?tagName(v.tag):(en()?'All products':'كل المنتجات')):pcF(v.sub||v.cat);
+  const title=v.view==='search'?(v.q?(en()?`Results for “${v.q}”`:`نتائج البحث عن «${v.q}»`):(en()?'Search':'بحث')):v.view==='all'?(v.tag?tagName(v.tag):(en()?'All products':'كل المنتجات')):v.view==='seg'?(v.cat?pcF(v.cat)+' – ':'')+(en()?v.seg.name_en:v.seg.name):pcF(v.sub||v.cat);
   const sep='<span aria-hidden="true">›</span>';
-  const crumbs=`<nav class="crumbs" aria-label="${en()?'Breadcrumb':'مسار الصفحة'}"><a href="${L.home()}" data-nav>${en()?'Home':'الرئيسية'}</a>${sep}${v.view==='cat'?(v.sub?`<a href="${L.cat(ci)}" data-nav>${esc(pcF(v.cat))}</a>${sep}<span aria-current="page">${esc(pcF(v.sub))}</span>`:`<span aria-current="page">${esc(pcF(v.cat))}</span>`):v.view==='all'&&v.tag?`<a href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'}</a>${sep}<span aria-current="page">${esc(title)}</span>`:`<span aria-current="page">${esc(title)}</span>`}</nav>`;
+  const crumbs=`<nav class="crumbs" aria-label="${en()?'Breadcrumb':'مسار الصفحة'}"><a href="${L.home()}" data-nav>${en()?'Home':'الرئيسية'}</a>${sep}${v.view==='seg'?(v.cat?`<a href="${L.seg(v.seg)}" data-nav>${esc(en()?v.seg.name_en:v.seg.name)}</a>${sep}<span aria-current="page">${esc(pcF(v.cat))}</span>`:`<span aria-current="page">${esc(title)}</span>`):v.view==='cat'?(v.sub?`<a href="${L.cat(ci)}" data-nav>${esc(pcF(v.cat))}</a>${sep}<span aria-current="page">${esc(pcF(v.sub))}</span>`:`<span aria-current="page">${esc(pcF(v.cat))}</span>`):v.view==='all'&&v.tag?`<a href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'}</a>${sep}<span aria-current="page">${esc(title)}</span>`:`<span aria-current="page">${esc(title)}</span>`}</nav>`;
   const subs=ci?ci.subs:[];
   $('#app').innerHTML=`${crumbs}
-  <div class="chips">${[null,...T].map(c=>`<a class="chip ${c?(c.name===v.cat?'on':''):(v.view==='all'&&!v.tag?'on':'')}" href="${c?L.cat(c):L.all()}" data-nav>${esc(c?pcF(c.name):t('all'))}</a>`).join('')}</div>
+  ${v.view==='seg'?`<div class="chips">${[null,...Object.keys(v.seg.pick).map(n=>T.find(c=>c.name===n)).filter(c=>c&&vis.some(p=>p.cat===c.name&&RT.inSeg(v.seg,p)))].map(c=>`<a class="chip ${(c?c.name:null)===v.cat?'on':''}" href="${L.seg(v.seg,c)}" data-nav>${esc(c?pcF(c.name):(en()?'All':'الكل'))}</a>`).join('')}</div>`:`<div class="chips">${[null,...T].map(c=>`<a class="chip ${c?(c.name===v.cat?'on':''):(v.view==='all'&&!v.tag?'on':'')}" href="${c?L.cat(c):L.all()}" data-nav>${esc(c?pcF(c.name):t('all'))}</a>`).join('')}</div>`}
   <div class="pagehead"><h1>${esc(title)}</h1><span class="count">${list.length} ${en()?'products':'منتج'}</span></div>
+  ${v.view==='seg'?`<p class="segd">${esc(en()?v.seg.desc_en:v.seg.desc)}</p>`:''}
   ${v.view==='cat'&&subs.length>1?`<div class="subs">${[null,...subs].map(x=>`<a class="ochip ${(x?x.name:null)===v.sub?'on':''}" href="${L.cat(ci,x)}" data-nav>${x?esc(pcF(x.name)):(en()?'All in '+esc(pcF(v.cat)):'كل '+esc(v.cat))}</a>`).join('')}</div>`:''}
   ${v.view==='all'?occ:''}
   <div class="tools"><label><input type="checkbox" id="onlyIn" ${onlyIn?'checked':''}> ${en()?'In stock only':'المتوفر فقط'}</label>

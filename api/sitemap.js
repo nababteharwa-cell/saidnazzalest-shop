@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   if (!PUBLIC) { res.statusCode = 404; res.setHeader('Cache-Control', 'public, s-maxage=300'); return res.end('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>'); }
   try {
     const c = await catalog(); const ps = (c.products || []).filter(p => p.visible !== false); const T = R.tree(c.settings || {}, ps); const P = R.paths('');
-    const urls = [P.home(), P.all(), ...T.flatMap(k => [P.cat(k), ...(k.subs.length > 1 ? k.subs.map(s => P.cat(k, s)) : [])]), ...ps.map(P.product)];
+    const urls = [P.home(), P.all(), ...R.SEGMENTS.map(sg => P.seg(sg)), ...T.flatMap(k => [P.cat(k), ...(k.subs.length > 1 ? k.subs.map(s => P.cat(k, s)) : [])]), ...ps.map(P.product)];
     const one = u => { const en = u + (u.includes('?') ? '&' : '?') + 'lang=en';
       return ['ar', 'en'].map(l => `<url><loc>${x(ORIGIN + (l === 'en' ? en : u))}</loc><xhtml:link rel="alternate" hreflang="ar" href="${x(ORIGIN + u)}"/><xhtml:link rel="alternate" hreflang="en" href="${x(ORIGIN + en)}"/></url>`).join(''); };
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400');

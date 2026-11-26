@@ -59,7 +59,7 @@ function build(cat, q) {
     const tiles = T.map(c => { const n = products.filter(p => p.cat === c.name).length; return `<a class="tile" href="${esc(L(P.cat(c)))}"><span class="ti"></span><b>${esc(cn(c))}</b><span class="count">${n} ${en ? 'products' : 'منتج'}</span></a>`; }).join('');
     const feats = T.map(c => { const f = sortAvail(products.filter(p => p.cat === c.name)).slice(0, 6); return f.length ? `<section class="feat"><div class="shophead"><h2>${esc(cn(c))}</h2><a href="${esc(L(P.cat(c)))}">${en ? 'View all' : 'عرض الكل'}</a></div><div class="grid">${f.map(card).join('')}</div></section>` : ''; }).join('');
     const bt = en ? (banner.title_en || banner.title) : banner.title, bs = en ? (banner.sub_en || banner.sub) : banner.sub;
-    body = `<section class="hero" style="background-image:url('${esc(banner.imgs && banner.imgs[0] || '')}')"><div class="txt"><h1>${esc(bt || store)}</h1><p>${esc(bs || '')}</p></div></section><div class="shophead"><h2>${en ? 'Shop by category' : 'تسوّق حسب القسم'}</h2><a class="count" href="${esc(L(P.all()))}">${en ? 'All products' : 'كل المنتجات'} (${products.length})</a></div><div class="tiles">${tiles}</div>${feats}`;
+    body = `<section class="hero" style="background-image:url('${esc(banner.imgs && banner.imgs[0] || '')}')"><div class="txt"><h1>${esc(bt || store)}</h1><p>${esc(bs || '')}</p></div></section><section class="segs" id="shop"><div class="shophead"><h2>${en ? 'Shop by business type' : 'تسوّق حسب نوع نشاطك'}</h2></div><div class="segrow">${R.SEGMENTS.map(sg => `<a class="seg" href="${esc(L(P.seg(sg)))}"><span class="sp"></span><b>${esc(en ? sg.name_en : sg.name)}</b><span class="sd">${esc(en ? sg.desc_en : sg.desc)}</span><span class="count">${products.filter(p => R.inSeg(sg, p)).length} ${en ? 'products' : 'منتج'}</span></a>`).join('')}</div></section><div class="shophead"><h2>${en ? 'Shop by category' : 'تسوّق حسب القسم'}</h2><a class="count" href="${esc(L(P.all()))}">${en ? 'All products' : 'كل المنتجات'} (${products.length})</a></div><div class="tiles">${tiles}</div>${feats}`;
     ld.push({ '@type': 'WebSite', name: store, url: ORIGIN + L(P.home()), potentialAction: { '@type': 'SearchAction', target: ORIGIN + P.search() + '?q={q}' + (en ? '&lang=en' : ''), 'query-input': 'required name=q' } });
   } else if (r.view === 'all') {
     const tag = q.tag || null; const ps = tag ? products.filter(p => (p.tags || []).includes(tag)) : products;
@@ -68,6 +68,19 @@ function build(cat, q) {
     here = P.all(tag); title = h1 + ' | ' + store;
     desc = (en ? `${h1}: ${ps.length} products – ` : `${h1}: ${ps.length} منتج – `) + homeDesc;
     if (status === 200) listPage(h1, [home, [h1, here]], ps);
+  } else if (r.view === 'seg') {
+    const sg = R.findSeg(r.segKey); const c = sg && q.c ? R.findCat(T, q.c) : null;
+    if (!sg || (q.c && (!c || !sg.pick[c.name]))) status = 404;
+    else {
+      const sn = en ? sg.name_en : sg.name, sd = en ? sg.desc_en : sg.desc;
+      const ps = products.filter(p => R.inSeg(sg, p) && (!c || p.cat === c.name)).map((p, i) => [p, i]).sort((a, b) => R.segRank(sg, a[0]) - R.segRank(sg, b[0]) || a[1] - b[1]).map(x => x[0]);
+      here = P.seg(sg, c); const h1 = c ? cn(c) + ' – ' + sn : sn; title = h1 + ' | ' + store;
+      desc = en ? `Supplies for ${sg.name_en.toLowerCase()}: ${sd}. ${ps.length} products at ${store}, Amman – Jubeiha. Order online, cash on delivery in Jordan.`
+        : `مستلزمات ${sg.name}: ${sd}. ${ps.length} منتج من ${store} في عمّان – الجبيهة. اطلب أونلاين والدفع عند الاستلام.`;
+      const im = imgOf(ps.find(imgOf) || {}); if (im) image = abs(im);
+      const chips = `<div class="chips">${Object.keys(sg.pick).map(n => T.find(k => k.name === n)).filter(k => k && products.some(p => p.cat === k.name && R.inSeg(sg, p))).map(k => `<a class="chip" href="${esc(L(P.seg(sg, k)))}">${esc(cn(k))}</a>`).join('')}</div>`;
+      listPage(h1, c ? [home, [sn, P.seg(sg)], [cn(c), here]] : [home, [sn, here]], ps, `<p class="segd">${esc(sd)}</p>${chips}`);
+    }
   } else if (r.view === 'cat') {
     const c = R.findCat(T, r.catSlug); const sx = c && r.subSlug ? R.findSub(c, r.subSlug) : null;
     if (!c || (r.subSlug && !sx)) { status = 404; }
