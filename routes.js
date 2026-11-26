@@ -45,6 +45,7 @@
               [C]: ['كاسات ورق وبلاستيك', 'أباريق ودلال', 'قناني وعبوات'], [D]: ['شموع وزينة', 'فلين وتنسيق', 'توبرات وعيدان'],
               [K]: ['عربايات وأثاث', 'طناجر ومقالي', 'حفظ وتخزين'] } }
   ];
+  SEGMENTS.forEach(s => { s.img = '/photos/types/' + s.key + '.webp'; });
   const inSeg = (seg, p) => { const v = seg && seg.pick[p.cat]; return v === '*' || (Array.isArray(v) && v.includes(p.sub)); };
   const segRank = (seg, p) => { const k = Object.keys(seg.pick).indexOf(p.cat); return k < 0 ? 99 : k; };   // the type's main categories first
   const findSeg = k => SEGMENTS.find(s => s.key === decodeURIComponent(k || '')) || null;
