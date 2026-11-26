@@ -3,6 +3,7 @@
 //   category    {base}/c/{category}            sub-category {base}/c/{category}/{sub}
 //   all items   {base}/c/all                   occasion     {base}/c/all?tag={occasion}
 //   business    {base}/b/{type}                 one category in it {base}/b/{type}?c={category}
+//   offers      {base}/offers                   one season {base}/offers/{season}
 //   search      {base}/search?q={words}
 //   product     {base}/p/{id}/{name}
 // {base} is "/shop-o6bwd2u8fe" on the private link and "" once the shop is public.
@@ -82,6 +83,64 @@
     if (cats) Object.keys(pick).forEach(c => { if (!known.has(c)) delete pick[c]; });
     return pick;
   };
+  // ---- seasonal offers (settings.seasons): a season shows chosen categories/families and products tagged
+  // with its occasion between two dates; an optional discount (%) is applied on the site and by place_order.
+  const ALL = { '*': '*' };
+  const DEFAULT_SEASONS = [
+    { key: 'white-friday', name: 'الجمعة البيضاء', name_en: 'White Friday', from: '2026-11-27', to: '2026-11-30', off: 0, on: false, tag: '',
+      desc: 'خصومات لفترة محدودة على تشكيلة واسعة من المنتجات', desc_en: 'Limited-time discounts on a wide range of products', pick: ALL },
+    { key: 'ramadan', name: 'عروض رمضان', name_en: 'Ramadan offers', from: '2027-01-25', to: '2027-03-08', off: 0, on: true, tag: 'رمضان',
+      desc: 'استعدّ لرمضان: علب الإفطار والسفري، صواني وسدور التقديم، علب الحلويات، والأباريق والدلال',
+      desc_en: 'Get ready for Ramadan: iftar and takeaway boxes, serving trays, sweet boxes, jugs and coffee pots',
+      pick: { [V]: '*', [S]: '*', [T]: ['علب وجبات', 'صحون وصواني سفري', 'ألمنيوم وقصدير', 'أكياس ومستلزمات', 'أغطية'], [C]: ['أباريق ودلال', 'قناني وعبوات', 'كاسات ورق وبلاستيك'] } },
+    { key: 'eid-al-fitr', name: 'عروض عيد الفطر', name_en: 'Eid al-Fitr offers', from: '2027-02-25', to: '2027-03-12', off: 0, on: true, tag: 'عيد',
+      desc: 'علب الحلويات والشوكولاتة، تغليف الهدايا، الزينة، وستاندات العرض للعيد',
+      desc_en: 'Sweet and chocolate boxes, gift packaging, decorations and display stands for Eid',
+      pick: { [S]: '*', [G]: '*', [D]: ['شموع وزينة', 'توبرات وعيدان'], [V]: ['سدور وصواني تقديم', 'ستاندات عرض'] } },
+    { key: 'eid-al-adha', name: 'عروض عيد الأضحى', name_en: 'Eid al-Adha offers', from: '2027-05-01', to: '2027-05-19', off: 0, on: true, tag: 'عيد',
+      desc: 'أكياس وصواني الألمنيوم، السكاكين وأدوات التقطيع، الطناجر، وصحون وجاطات التقديم',
+      desc_en: 'Foil trays and bags, knives and cutting tools, pots, serving plates and bowls',
+      pick: { [T]: ['ألمنيوم وقصدير', 'صحون وصواني سفري', 'أكياس ومستلزمات'], [K]: ['سكاكين وأدوات تقطيع', 'طناجر ومقالي', 'حفظ وتخزين'], [V]: ['جاطات وزبادي', 'صحون وأطباق', 'سدور وصواني تقديم'], [S]: '*' } }
+  ];
+  const seasons = (settings, all) => (settings && Array.isArray(settings.seasons) ? settings.seasons : DEFAULT_SEASONS)
+    .filter(x => x && x.key && x.name && x.from && x.to && (all || x.on));
+  const today = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Amman', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d || new Date());
+  const live = (x, d) => { d = d || today(); return x.from <= d && d <= x.to; };
+  const inSeason = (x, p) => !!x.pick && (x.pick['*'] === '*' || inSeg(x, p)) || !!(x.tag && (p.tags || []).includes(x.tag));
+  // discounts only once the database applies them too (16-seasonal-offers.sql marks the catalogue with offersReady)
+  const offFor = (settings, p, d) => !(settings && settings.offersReady) ? 0 : seasons(settings).reduce((m, x) => {
+    const o = Math.min(90, Math.max(0, +x.off || 0));
+    return o > m && live(x, d) && inSeason(x, p) ? o : m; }, 0);
+  const offPrice = (price, off) => off > 0 ? Math.round(price * (1 - off / 100) * 1000 + 1e-7) / 1000 : price;   // same rounding as place_order
+
+  // ---- showroom (settings.showroom)
+  const DAYS = [['sat', 'السبت', 'Saturday'], ['sun', 'الأحد', 'Sunday'], ['mon', 'الاثنين', 'Monday'], ['tue', 'الثلاثاء', 'Tuesday'],
+                ['wed', 'الأربعاء', 'Wednesday'], ['thu', 'الخميس', 'Thursday'], ['fri', 'الجمعة', 'Friday']];
+  const showroom = settings => ({ addr: 'عمّان – الجبيهة – إشارة الدوريات', addr_en: 'Amman – Jubeiha – Dawriyat traffic lights',
+    phones: ['0770983332', '0788816611'], hours: {}, maps: '', ...((settings && settings.showroom) || {}) });
+  const mapPoint = sr => { const m = String(sr.maps || '').match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(sr.maps || '').match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+      || String(sr.maps || '').match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || String(sr.maps || '').match(/^\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)\s*$/);
+    return m ? [+m[1], +m[2]] : null; };
+  const mapUrls = (sr, store) => { const pt = mapPoint(sr); const q = pt ? pt.join(',') : (store ? store + ' ' : '') + sr.addr;
+    const link = /^https:\/\//.test(sr.maps || '') ? sr.maps : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+    return { embed: 'https://maps.google.com/maps?q=' + encodeURIComponent(q) + '&z=16&output=embed', link, point: pt }; };
+  const nowAmman = d => { const f = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Amman', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d || new Date());
+    const g = t => (f.find(x => x.type === t) || {}).value; return { day: g('weekday').toLowerCase().slice(0, 3), min: (+g('hour') % 24) * 60 + +g('minute') }; };
+  const openState = (sr, d) => { const h = sr.hours || {}; if (!Object.keys(h).length) return null;
+    const n = nowAmman(d), x = h[n.day]; const mm = s => { const [a, b] = String(s || '').split(':'); return +a * 60 + (+b || 0); };
+    if (x && x.from && x.to && n.min >= mm(x.from) && n.min < mm(x.to)) return { open: true, until: x.to, day: n.day };
+    return { open: false, day: n.day }; };
+  const suggestSeasonPick = (text, cats) => {
+    const t = String(text || ''), d = k => DEFAULT_SEASONS.find(x => x.key === k).pick;
+    if (/بيضاء|سوداء|تخفيض|تصفية|white|black|sale|clearance/i.test(t)) return { ...ALL };
+    const pick = {};
+    if (/رمضان|ramadan|إفطار|iftar/i.test(t)) addPick(pick, d('ramadan'));
+    if (/أضحى|اضحى|adha/i.test(t)) addPick(pick, d('eid-al-adha'));
+    else if (/عيد|فطر|eid|fitr/i.test(t)) addPick(pick, d('eid-al-fitr'));
+    const more = suggestPick(t, cats); addPick(pick, more);
+    if (cats) { const known = new Set(cats.map(c => c.name)); Object.keys(pick).forEach(c => { if (!known.has(c)) delete pick[c]; }); }
+    return pick;
+  };
   const inSeg = (seg, p) => { const v = seg && seg.pick[p.cat]; return v === '*' || (Array.isArray(v) && v.includes(p.sub)); };
   const segRank = (seg, p) => { const k = Object.keys(seg.pick).indexOf(p.cat); return k < 0 ? 99 : k; };   // the type's main categories first
   const findSeg = (k, list) => (list || SEGMENTS).find(s => s.key === decodeURIComponent(k || '')) || null;
@@ -90,6 +149,8 @@
     home: () => base + '/',
     all: tag => base + '/c/all' + (tag ? '?tag=' + encodeURIComponent(tag) : ''),
     cat: (c, sub) => base + '/c/' + enc(catSlug(c)) + (sub ? '/' + enc(slug(sub.name_en, sub.name)) : ''),
+    offers: () => base + '/offers',
+    season: x => base + '/offers/' + x.key,
     seg: (s, c) => base + '/b/' + s.key + (c ? '?c=' + encodeURIComponent(catSlug(c)) : ''),
     search: q => base + '/search' + (q ? '?q=' + encodeURIComponent(q) : ''),
     product: p => base + '/p/' + encodeURIComponent(p.id) + '/' + enc(slug(p.name_en, p.name))
@@ -100,6 +161,7 @@
     if (!seg.length) return { view: 'home' };
     if (seg[0] === 'c' && seg[1] === 'all') return { view: 'all' };
     if (seg[0] === 'c' && seg[1]) return { view: 'cat', catSlug: seg[1], subSlug: seg[2] || null };
+    if (seg[0] === 'offers' && !seg[2]) return seg[1] ? { view: 'season', seasonKey: seg[1] } : { view: 'offers' };
     if (seg[0] === 'b' && seg[1] && !seg[2]) return { view: 'seg', segKey: seg[1] };
     if (seg[0] === 'search') return { view: 'search' };
     if (seg[0] === 'p' && seg[1]) return { view: 'product', pid: decodeURIComponent(seg[1]) };
@@ -119,6 +181,6 @@
       return { name: n, name_en, img: c.img || '', subs };
     });
   };
-  const api = { tree, SEGMENTS, segments, suggestPick, inSeg, segRank, findSeg, PRIVATE, slug, catSlug, findCat, findSub, paths, parse };
+  const api = { tree, suggestSeasonPick, DEFAULT_SEASONS, seasons, today, live, inSeason, offFor, offPrice, DAYS, showroom, mapUrls, openState, SEGMENTS, segments, suggestPick, inSeg, segRank, findSeg, PRIVATE, slug, catSlug, findCat, findSub, paths, parse };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SNRoutes = api;
 })(typeof window !== 'undefined' ? window : globalThis);

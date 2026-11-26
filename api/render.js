@@ -36,7 +36,14 @@ function build(cat, q) {
   const cn = c => en ? (c.name_en || c.name) : c.name;
   const store = en ? (settings.store_en || 'Said Nazzal Trading') : (settings.store || 'سعيد نزال التجارية');
   const cur = en ? 'JD' : 'د.أ';
-  const priceTxt = p => { if (p.ask) return en ? 'Price on request' : 'السعر عند الطلب'; const ps = p.vars.map(v => +v.price); const mn = Math.min(...ps), mx = Math.max(...ps); return (mn === mx ? '' : (en ? 'From ' : 'من ')) + num(mn) + ' ' + cur; };
+  const day = R.today();
+  const offOf = p => p.ask ? 0 : R.offFor(settings, p, day);
+  const vPrice = (p, v) => R.offPrice(+v.price, offOf(p));
+  const priceTxt = p => { if (p.ask) return en ? 'Price on request' : 'السعر عند الطلب'; const ps = p.vars.map(v => vPrice(p, v)); const mn = Math.min(...ps), mx = Math.max(...ps); return (mn === mx ? '' : (en ? 'From ' : 'من ')) + num(mn) + ' ' + cur + (offOf(p) ? ` (−${offOf(p)}%)` : ''); };
+  const fday = iso => new Date(iso + 'T12:00:00Z').toLocaleDateString(en ? 'en-GB' : 'ar-JO-u-nu-latn', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const sName = x => en ? (x.name_en || x.name) : x.name, sDesc = x => (en ? (x.desc_en || x.desc) : x.desc) || '';
+  const offLine = x => R.live(x, day) ? ((+x.off ? (en ? `Up to ${+x.off}% off ` : `خصم ${+x.off}% `) : '') + (en ? `until ${fday(x.to)}` : `حتى ${fday(x.to)}`)) : (en ? `Starts ${fday(x.from)}` : `تبدأ في ${fday(x.from)}`);
+  const sr = R.showroom(settings); const mu = R.mapUrls(sr, settings.store || 'سعيد نزال التجارية');
   const card = p => `<a class="card" href="${esc(L(P.product(p)))}" data-p="${esc(p.id)}"><div class="thumb">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="${esc(nm(p))}" loading="lazy">` : ''}</div><div class="b"><h3>${esc(nm(p))}</h3>${avail(p) ? '' : `<span class="oos">${en ? 'Sold out' : 'نفدت الكمية'}</span>`}<span class="price">${esc(priceTxt(p))}</span></div></a>`;
   const crumbs = items => `<nav class="crumbs" aria-label="${en ? 'Breadcrumb' : 'مسار الصفحة'}">${items.map((x, i) => i < items.length - 1 ? `<a href="${esc(L(x[1]))}">${esc(x[0])}</a><span aria-hidden="true">›</span>` : `<span aria-current="page">${esc(x[0])}</span>`).join('')}</nav>`;
   const banner = settings.banner || {};
@@ -59,7 +66,10 @@ function build(cat, q) {
     const tiles = T.map(c => { const n = products.filter(p => p.cat === c.name).length; return `<a class="tile" href="${esc(L(P.cat(c)))}"><span class="ti"></span><b>${esc(cn(c))}</b><span class="count">${n} ${en ? 'products' : 'منتج'}</span></a>`; }).join('');
     const feats = T.map(c => { const f = sortAvail(products.filter(p => p.cat === c.name)).slice(0, 6); return f.length ? `<section class="feat"><div class="shophead"><h2>${esc(cn(c))}</h2><a href="${esc(L(P.cat(c)))}">${en ? 'View all' : 'عرض الكل'}</a></div><div class="grid">${f.map(card).join('')}</div></section>` : ''; }).join('');
     const bt = en ? (banner.title_en || banner.title) : banner.title, bs = en ? (banner.sub_en || banner.sub) : banner.sub;
-    body = `<section class="hero" style="background-image:url('${esc(banner.imgs && banner.imgs[0] || '')}')"><div class="txt"><h1>${esc(bt || store)}</h1><p>${esc(bs || '')}</p></div></section><section class="segs" id="shop"><div class="shophead"><h2>${en ? 'Shop by business type' : 'تسوّق حسب نوع نشاطك'}</h2></div><div class="segrow">${R.segments(settings).map(sg => `<a class="seg" href="${esc(L(P.seg(sg)))}"><span class="si"><img src="${esc(sg.img || ((T.find(k => k.name === Object.keys(sg.pick)[0]) || {}).img) || '')}" alt="" width="720" height="880" loading="lazy"></span><b>${esc(en ? sg.name_en : sg.name)}</b><span class="sd">${esc(en ? sg.desc_en : sg.desc)}</span><span class="count">${products.filter(p => R.inSeg(sg, p)).length} ${en ? 'products' : 'منتج'}</span></a>`).join('')}</div></section><div class="shophead"><h2>${en ? 'Shop by category' : 'تسوّق حسب القسم'}</h2><a class="count" href="${esc(L(P.all()))}">${en ? 'All products' : 'كل المنتجات'} (${products.length})</a></div><div class="tiles">${tiles}</div>${feats}`;
+    const strip = R.seasons(settings).filter(x => R.live(x, day)).map(x => `<a class="ostrip" href="${esc(L(P.season(x)))}"><b>${esc(sName(x))}</b><span>${esc(offLine(x))}</span></a>`).join('');
+    const H = sr.hours || {};
+    const visit = `<section class="showroom" id="visit"><div class="srinfo"><h2>${en ? 'Visit our showroom' : 'زوروا معرضنا'}</h2><p class="sraddr">${esc(en ? sr.addr_en || sr.addr : sr.addr)}</p>${Object.keys(H).length ? `<table class="hours"><tbody>${R.DAYS.map(([k, ar, enN]) => `<tr><th>${en ? enN : ar}</th><td>${H[k] && H[k].from && H[k].to ? `<span dir="ltr">${esc(H[k].from)} – ${esc(H[k].to)}</span>` : (en ? 'Closed' : 'مغلق')}</td></tr>`).join('')}</tbody></table>` : ''}<div class="srbtn"><a class="btn" href="${esc(mu.link)}" rel="noopener">${en ? 'Directions on Google Maps' : 'الاتجاهات على خرائط جوجل'}</a>${(sr.phones || []).filter(Boolean).map(n => `<a class="btn alt" href="tel:${esc(String(n).replace(/[^\d+]/g, ''))}" dir="ltr">${esc(n)}</a>`).join('')}</div></div></section>`;
+    body = `<section class="hero" style="background-image:url('${esc(banner.imgs && banner.imgs[0] || '')}')"><div class="txt"><h1>${esc(bt || store)}</h1><p>${esc(bs || '')}</p></div></section>${strip}<section class="segs" id="shop"><div class="shophead"><h2>${en ? 'Shop by business type' : 'تسوّق حسب نوع نشاطك'}</h2></div><div class="segrow">${R.segments(settings).map(sg => `<a class="seg" href="${esc(L(P.seg(sg)))}"><span class="si"><img src="${esc(sg.img || ((T.find(k => k.name === Object.keys(sg.pick)[0]) || {}).img) || '')}" alt="" width="720" height="880" loading="lazy"></span><b>${esc(en ? sg.name_en : sg.name)}</b><span class="sd">${esc(en ? sg.desc_en : sg.desc)}</span><span class="count">${products.filter(p => R.inSeg(sg, p)).length} ${en ? 'products' : 'منتج'}</span></a>`).join('')}</div></section><div class="shophead"><h2>${en ? 'Shop by category' : 'تسوّق حسب القسم'}</h2><a class="count" href="${esc(L(P.all()))}">${en ? 'All products' : 'كل المنتجات'} (${products.length})</a></div><div class="tiles">${tiles}</div>${feats}${visit}`;
     ld.push({ '@type': 'WebSite', name: store, url: ORIGIN + L(P.home()), potentialAction: { '@type': 'SearchAction', target: ORIGIN + P.search() + '?q={q}' + (en ? '&lang=en' : ''), 'query-input': 'required name=q' } });
   } else if (r.view === 'all') {
     const tag = q.tag || null; const ps = tag ? products.filter(p => (p.tags || []).includes(tag)) : products;
@@ -68,6 +78,23 @@ function build(cat, q) {
     here = P.all(tag); title = h1 + ' | ' + store;
     desc = (en ? `${h1}: ${ps.length} products – ` : `${h1}: ${ps.length} منتج – `) + homeDesc;
     if (status === 200) listPage(h1, [home, [h1, here]], ps);
+  } else if (r.view === 'offers') {
+    const S = R.seasons(settings).filter(x => x.to >= day).sort((a, b) => (R.live(b, day) - R.live(a, day)) || a.from.localeCompare(b.from));
+    const h1 = en ? 'Seasonal offers' : 'العروض الموسمية'; here = P.offers(); title = h1 + ' | ' + store;
+    desc = (en ? 'Ramadan, Eid and seasonal offers on restaurant, café, pastry and packaging supplies. ' : 'عروض رمضان والعيد والمواسم على مستلزمات المطاعم والكافيهات والحلويات والتغليف. ') + homeDesc;
+    body = `${crumbs([home, [h1, here]])}<div class="pagehead"><h1>${esc(h1)}</h1></div><div class="segrow">${S.map(x => `<a class="seg" href="${esc(L(P.season(x)))}"><span class="si">${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy">` : ''}</span><b>${esc(sName(x))}</b><span class="sd">${esc(sDesc(x))}</span><span class="count">${esc(offLine(x))}</span></a>`).join('') || `<p>${en ? 'No offers right now.' : 'لا توجد عروض حالياً.'}</p>`}</div>`;
+    ld.push(crumbLd([home, [h1, here]]));
+  } else if (r.view === 'season') {
+    const x = R.seasons(settings).find(x => x.key === decodeURIComponent(r.seasonKey || '')); const c = x && q.c ? R.findCat(T, q.c) : null;
+    if (!x || (q.c && !c)) status = 404;
+    else {
+      const ps = products.filter(p => R.inSeason(x, p) && (!c || p.cat === c.name));
+      here = P.season(x) + (c ? '?c=' + encodeURIComponent(R.catSlug(c)) : ''); const h1 = (c ? cn(c) + ' – ' : '') + sName(x); title = h1 + ' | ' + store;
+      desc = `${sName(x)}: ${offLine(x)}. ${sDesc(x)} – ${store}.`; if (x.img) image = abs(x.img);
+      const chips = `<p class="segd">${esc(offLine(x))} ${esc(sDesc(x))}</p><div class="chips">${T.filter(k => products.some(p => p.cat === k.name && R.inSeason(x, p))).map(k => `<a class="chip" href="${esc(L(P.season(x) + '?c=' + encodeURIComponent(R.catSlug(k))))}">${esc(cn(k))}</a>`).join('')}</div>`;
+      const offersCrumb = [en ? 'Offers' : 'العروض', P.offers()];
+      listPage(h1, c ? [home, offersCrumb, [sName(x), P.season(x)], [cn(c), here]] : [home, offersCrumb, [sName(x), here]], ps, chips);
+    }
   } else if (r.view === 'seg') {
     const sg = R.findSeg(r.segKey, R.segments(settings)); const c = sg && q.c ? R.findCat(T, q.c) : null;
     if (!sg || (q.c && (!c || !sg.pick[c.name]))) status = 404;
@@ -110,9 +137,9 @@ function build(cat, q) {
       desc = (d ? d + ' – ' : '') + (en ? `${priceTxt(p)} – ${avail(p) ? 'in stock' : 'sold out'}. ${store}, Amman – Jubeiha. Order online.` : `${priceTxt(p)} – ${avail(p) ? 'متوفر' : 'نفدت الكمية'}. ${store}، عمّان – الجبيهة. اطلب أونلاين.`);
       if (imgOf(p)) image = abs(imgOf(p));
       const items = [home]; if (c) items.push([cn(c), P.cat(c)]); if (c && sx) items.push([cn(sx), P.cat(c, sx)]); items.push([nm(p), here]);
-      const sizes = p.vars.length > 1 ? `<ul>${p.vars.map(v => `<li>${esc(v.label)}${p.ask ? '' : ' — ' + num(v.price) + ' ' + cur}${inStock(v) ? '' : ' (' + (en ? 'sold out' : 'نفد') + ')'}</li>`).join('')}</ul>` : '';
+      const sizes = p.vars.length > 1 ? `<ul>${p.vars.map(v => `<li>${esc(v.label)}${p.ask ? '' : ' — ' + num(vPrice(p, v)) + ' ' + cur}${inStock(v) ? '' : ' (' + (en ? 'sold out' : 'نفد') + ')'}</li>`).join('')}</ul>` : '';
       body = `${crumbs(items)}<article class="pview"><div class="thumb">${imgOf(p) ? `<img src="${esc(imgOf(p))}" alt="${esc(nm(p))}">` : ''}</div><div><h1>${esc(nm(p))}</h1><p class="price">${esc(priceTxt(p))}</p>${avail(p) ? '' : `<p class="oos">${en ? 'Sold out' : 'نفدت الكمية'}</p>`}${d ? `<p>${esc(d)}</p>` : ''}${p.unit ? `<p class="note">${en ? 'Unit' : 'الوحدة'}: ${esc(p.unit)}</p>` : ''}${sizes}</div></article>`;
-      const prices = p.vars.map(v => +v.price).filter(x => x > 0);
+      const prices = p.vars.map(v => vPrice(p, v)).filter(x => x > 0);
       const offer = p.ask || !prices.length ? undefined : (Math.min(...prices) === Math.max(...prices)
         ? { '@type': 'Offer', price: num(prices[0]), priceCurrency: 'JOD', availability: 'https://schema.org/' + (avail(p) ? 'InStock' : 'OutOfStock'), url: ORIGIN + L(here), seller: { '@type': 'Organization', name: store } }
         : { '@type': 'AggregateOffer', lowPrice: num(Math.min(...prices)), highPrice: num(Math.max(...prices)), offerCount: p.vars.length, priceCurrency: 'JOD', availability: 'https://schema.org/' + (avail(p) ? 'InStock' : 'OutOfStock'), url: ORIGIN + L(here) });
@@ -129,7 +156,9 @@ function build(cat, q) {
   const canonical = en ? urlEn : urlAr;
   const indexable = PUBLIC && status === 200 && r.view !== 'search';
   const org = { '@type': 'Store', name: store, url: ORIGIN + L(P.home()), logo: abs(banner.logo || 'photos/b-logo.jpg'), image: abs('photos/b-store.jpg'),
-    telephone: ['+962770983332', '+962788816611'], address: { '@type': 'PostalAddress', streetAddress: en ? 'Jubeiha – Al-Dawriyat traffic light' : 'الجبيهة – إشارة الدوريات', addressLocality: en ? 'Amman' : 'عمّان', addressCountry: 'JO' },
+    telephone: (sr.phones || []).filter(Boolean).map(n => '+962' + String(n).replace(/\D/g, '').replace(/^0/, '')), address: { '@type': 'PostalAddress', streetAddress: en ? (sr.addr_en || sr.addr) : sr.addr, addressLocality: en ? 'Amman' : 'عمّان', addressCountry: 'JO' },
+    ...(mu.point ? { geo: { '@type': 'GeoCoordinates', latitude: mu.point[0], longitude: mu.point[1] }, hasMap: mu.link } : { hasMap: mu.link }),
+    ...(Object.keys(sr.hours || {}).length ? { openingHoursSpecification: R.DAYS.filter(([k]) => sr.hours[k] && sr.hours[k].from && sr.hours[k].to).map(([k, , enN]) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: 'https://schema.org/' + enN, opens: sr.hours[k].from, closes: sr.hours[k].to })) } : {}),
     sameAs: ['https://www.instagram.com/saidnazzalest/', 'https://www.facebook.com/SaidNazzalEstablishment'], priceRange: '$' };
   const graph = ld ? [org, ...ld] : [org];
   const head = [

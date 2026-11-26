@@ -62,6 +62,14 @@
       "destination": "/api/render?base=private&p=:path*"
     },
     {
+      "source": "/offers",
+      "destination": "/api/render?p=offers"
+    },
+    {
+      "source": "/offers/:path*",
+      "destination": "/api/render?p=offers/:path*"
+    },
+    {
       "source": "/b/:path*",
       "destination": "/api/render?p=b/:path*"
     },
