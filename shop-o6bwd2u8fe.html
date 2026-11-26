@@ -73,6 +73,7 @@ header{position:sticky;top:0;z-index:20;background:#fffffff2;backdrop-filter:sat
 .chip:hover{color:var(--ink)}
 .chip.on{color:var(--navy);border-color:var(--gold);font-weight:700}
 #shop{scroll-margin-top:80px}
+.tg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;margin-bottom:6px}@media(max-width:600px){.tg{grid-template-columns:minmax(0,1fr)}}
 .segs{margin:6px 0 18px}.segrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:10px}
 .seg{background:#fff;border-radius:var(--r);padding:10px 10px 14px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 0 var(--line);color:var(--ink);text-decoration:none;border-top:4px solid var(--navy)}
 .seg:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}.seg:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
@@ -286,7 +287,7 @@ async function persist(list){if(!list.length)return true;
   list.forEach(p=>{const i=db.products.findIndex(x=>x.id===p.id);if(i<0)db.products.unshift(p);else db.products[i]=p});snap(list);return true}
 async function loadOrders(){const r=await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(500);if(r.error){fail('تعذّر تحميل الطلبات',r.error);return}db.orders=r.data.map(rowToOrder)}
 async function saveProduct(p){return persist([p])}
-async function saveSettings(){const r=await sb.from('settings').upsert({id:1,data:db.settings,updated_at:new Date().toISOString()});if(r.error){fail('ما انحفظت الإعدادات',r.error);return false}return true}
+async function saveSettings(){const r=await sb.from('settings').upsert({id:1,data:db.settings,updated_at:new Date().toISOString()});if(!r.error)try{localStorage.removeItem(CAT_KEY)}catch(e){}if(r.error){fail('ما انحفظت الإعدادات',r.error);return false}return true}
 async function uploadImg(dataUrl){if(!dataUrl||!dataUrl.startsWith('data:'))return dataUrl;const blob=await (await fetch(dataUrl)).blob();const path='uploads/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
   const r=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg',upsert:false});if(r.error){fail('ما انرفعت الصورة',r.error);return null}return sb.storage.from('photos').getPublicUrl(path).data.publicUrl}
 async function uploadProductImgs(p){if(p.img&&p.img.startsWith('data:'))p.img=await uploadImg(p.img);for(const v of p.vars)if(v.img&&v.img.startsWith('data:'))v.img=await uploadImg(v.img)}
@@ -369,7 +370,7 @@ const skey=p=>{let k=SKEY.get(p);if(!k){k=norm([p.name,p.desc,p.cat,p.sub,p.name
 const ctree=()=>RT.tree(db.settings,db.products);
 function readURL(){const r=RT.parse(location.pathname.slice(SBASE.length));const sp=new URLSearchParams(location.search);const T=ctree();
   view={view:r.view,cat:null,sub:null,seg:null,tag:sp.get('tag')||null,q:sp.get('q')||'',pid:r.pid||null};
-  if(r.view==='seg'){const sg=RT.findSeg(r.segKey);if(!sg)view.view='notfound';else{view.seg=sg;const cs=sp.get('c');if(cs){const c=RT.findCat(T,cs);if(c&&Object.keys(sg.pick).includes(c.name))view.cat=c.name;else view.view='notfound'}}}
+  if(r.view==='seg'){const sg=RT.findSeg(r.segKey,RT.segments(db.settings));if(!sg)view.view='notfound';else{view.seg=sg;const cs=sp.get('c');if(cs){const c=RT.findCat(T,cs);if(c&&Object.keys(sg.pick).includes(c.name))view.cat=c.name;else view.view='notfound'}}}
   if(r.view==='cat'){const c=RT.findCat(T,r.catSlug);if(!c)view.view='notfound';else{view.cat=c.name;if(r.subSlug){const x=RT.findSub(c,r.subSlug);if(x)view.sub=x.name;else view.view='notfound'}}}
   if(r.view==='product'){const p=db.products.find(x=>x.id===r.pid&&x.visible!==false);if(!p)view.view='notfound';else view.cat=p.cat}
   if(r.view!=='search'&&$('#q'))$('#q').value='';else if($('#q')&&document.activeElement!==$('#q'))$('#q').value=view.q}
@@ -412,7 +413,7 @@ function renderShop(){
     <div class="facts">${P.filter(Boolean).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</div></div>
     <div class="art">${b.imgs.slice(1).filter(Boolean).map(u=>`<img src="${u}" alt="">`).join('')}</div></section>
     <section class="segs" id="shop"><div class="shophead"><h2>${en()?'Shop by business type':'تسوّق حسب نوع نشاطك'}</h2></div>
-    <div class="segrow">${RT.SEGMENTS.map(sg=>{const ps=vis.filter(p=>RT.inSeg(sg,p));return `<a class="seg" href="${L.seg(sg)}" data-nav><span class="si"><img src="${sg.img}" alt="" width="720" height="880" loading="lazy" decoding="async"></span><b>${esc(en()?sg.name_en:sg.name)}</b><span class="sd">${esc(en()?sg.desc_en:sg.desc)}</span><span class="count">${ps.length} ${en()?'products':'منتج'}</span></a>`}).join('')}</div></section>
+    <div class="segrow">${RT.segments(db.settings).map(sg=>{const ps=vis.filter(p=>RT.inSeg(sg,p));return `<a class="seg" href="${L.seg(sg)}" data-nav><span class="si"><img src="${sg.img||cover(Object.keys(sg.pick)[0])||''}" alt="" width="720" height="880" loading="lazy" decoding="async"></span><b>${esc(en()?sg.name_en:sg.name)}</b><span class="sd">${esc(en()?sg.desc_en:sg.desc)}</span><span class="count">${ps.length} ${en()?'products':'منتج'}</span></a>`}).join('')}</div></section>
     <div class="shophead"><h2>${en()?'Shop by category':'تسوّق حسب القسم'}</h2><a class="count" href="${L.all()}" data-nav>${en()?'All products':'كل المنتجات'} (${vis.length})</a></div>
     <div class="tiles">${T.map(c=>`<a class="tile" href="${L.cat(c)}" data-nav><span class="ti">${cover(c.name)?`<img src="${cover(c.name)}" alt="" loading="lazy" decoding="async">`:''}</span><b>${esc(pcF(c.name))}</b><span class="count">${vis.filter(p=>p.cat===c.name).length} ${en()?'products':'منتج'}</span></a>`).join('')}</div>
     ${occ}
@@ -513,7 +514,7 @@ let acc={owner:false,perms:[]};
 const can=k=>acc.owner||acc.perms.includes(k);
 async function access(uid){const a=await sb.from('admins').select('user_id').eq('user_id',uid).maybeSingle();if(a.data)return{owner:true,perms:Object.keys(PERMS)};
   const p=await sb.from('panel_users').select('perms,active,name').eq('user_id',uid).maybeSingle();if(p.data&&p.data.active&&p.data.perms&&p.data.perms.length)return{owner:false,perms:p.data.perms,name:p.data.name};return null}
-const TAB_PERM={orders:'orders',products:'products',stock:'stock',cats:'products',front:'products',history:'history',commission:'commission',settings:'settings',users:'owner',account:''};
+const TAB_PERM={orders:'orders',products:'products',stock:'stock',cats:'products',types:'products',front:'products',history:'history',commission:'commission',settings:'settings',users:'owner',account:''};
 const tabOk=k=>TAB_PERM[k]===''||(TAB_PERM[k]==='owner'?acc.owner:can(TAB_PERM[k]));
 function renderAdmin(){
   $('#searchBox').style.display='none';
@@ -524,11 +525,11 @@ function renderAdmin(){
     const a=await access(r.data.user.id);
     if(!a){await sb.auth.signOut();$('#lgErr').textContent='هذا الحساب ما عنده صلاحية دخول لوحة التحكم';return}
     acc=a;authed=true;await Promise.all([loadOrders(),reloadAllProducts()]);renderAdmin()});return}
-  const T=Object.fromEntries(Object.entries({orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',front:'واجهة المتجر',history:'السجل',commission:'العمولة',settings:'الإعدادات',users:'المستخدمين',account:'حسابي'}).filter(([k])=>tabOk(k)));
+  const T=Object.fromEntries(Object.entries({orders:'الطلبات',products:'المنتجات',stock:'المخزون',cats:'الأقسام',types:'أنواع النشاط',front:'واجهة المتجر',history:'السجل',commission:'العمولة',settings:'الإعدادات',users:'المستخدمين',account:'حسابي'}).filter(([k])=>tabOk(k)));
   if(!T[adminTab])adminTab=Object.keys(T)[0];
   $('#app').innerHTML=`<div class="demo" id="adminNote" style="display:none"></div>
   <div class="tabs">${Object.entries(T).map(([k,v])=>`<button class="tab ${k===adminTab?'on':''}" data-tab="${k}">${v}</button>`).join('')}<button class="tab" id="out" style="margin-inline-start:auto">خروج</button></div><div id="pane"></div>`;
-  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,front:paneFront,history:paneHistory,commission:paneCommission,settings:paneSettings,users:paneUsers,account:paneAccount})[adminTab]();
+  ({orders:paneOrders,products:paneProducts,stock:paneStock,cats:paneCats,types:paneTypes,front:paneFront,history:paneHistory,commission:paneCommission,settings:paneSettings,users:paneUsers,account:paneAccount})[adminTab]();
 }
 let ofilter='all';
 function paneOrders(){
@@ -788,6 +789,65 @@ function paneCats(){
     if(changed.length&&!await persist(changed)){btn.disabled=false;btn.textContent='حفظ الأقسام';return}
     db.settings.categories=L.map(({orig,...c})=>({...c,subs:c.subs.map(({orig,...x})=>x)}));
     if(await saveSettings()){toast('تم حفظ الأقسام'+(changed.length?` – انتقل ${changed.length} منتج`:''));paneCats()}else{btn.disabled=false;btn.textContent='حفظ الأقسام'}};};
+  draw();
+}
+/* ---------- business types (أنواع النشاط): shop by business type ---------- */
+function paneTypes(){
+  const cats=catList();
+  const toEdit=t=>({...t,pick:Object.fromEntries(Object.entries(t.pick||{}).map(([c,v])=>[c,v==='*'?'*':new Set(v)]))});
+  let L=RT.segments(db.settings,true).map(t=>toEdit(JSON.parse(JSON.stringify(t))));let open=-1,askDel=-1,dirty=false;
+  const vis=db.products.filter(p=>p.visible!==false);
+  const famOn=(t,c,x)=>{const v=t.pick[c.name];return v==='*'||(v instanceof Set&&v.has(x.name))};
+  const catState=(t,c)=>{const v=t.pick[c.name];if(v==='*')return'all';if(!(v instanceof Set)||!v.size)return'none';return c.subs.length&&c.subs.every(x=>v.has(x.name))?'all':'some'};
+  const plain=t=>({...t,pick:Object.fromEntries(Object.entries(t.pick).filter(([,v])=>v==='*'||v.size).map(([c,v])=>[c,v==='*'?'*':[...v]]))});
+  const count=t=>{const pt=plain(t);return vis.filter(p=>RT.inSeg(pt,p)).length};
+  const fcount=(c,x)=>vis.filter(p=>p.cat===c.name&&(x==null||p.sub===x.name)).length;
+  const auto=t=>{const s=RT.suggestPick([t.name,t.name_en,t.desc,t.desc_en].join(' '),cats);t.pick=toEdit({pick:s}).pick};
+  const keyFor=t=>{let k=(t.name_en||'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'type-'+Date.now().toString(36);let n=k,i=2;while(L.some(o=>o!==t&&o.key===n))n=k+'-'+i++;return n};
+  const draw=()=>{const ae=document.activeElement;const fk=ae&&ae.closest&&ae.closest('#tl')?['tn','tne','td','tde'].find(k=>ae.dataset[k]!=null):null;const fsel=fk?`[data-${fk}="${ae.dataset[fk]}"]`:null;
+  $('#pane').innerHTML=`<p class="note" style="margin-top:0">أنواع النشاط تظهر في الصفحة الرئيسية تحت «تسوّق حسب نوع نشاطك»، ولكل نوع صفحة خاصة. الأقسام تُختار تلقائياً حسب اسم النوع ووصفه، ويمكنك إزالة العلامة عن أي قسم أو قسم فرعي لا يناسب. المنتج الواحد يمكن أن يظهر في أكثر من نوع.</p>
+  <div id="tl">${L.map((t,i)=>`<div class="kpi" style="margin-bottom:12px;${t.hidden?'opacity:.6':''}"><div class="row" style="align-items:flex-start">
+   <label class="mini" style="margin:0;cursor:pointer;width:96px;height:72px" title="صورة النوع">${t.img?`<img src="${t.img}" alt="" style="width:100%;height:100%;object-fit:cover">`:'<span style="font-size:13px;color:var(--mute);text-align:center">+ صورة</span>'}<input type="file" accept="image/*" data-ti="${i}" hidden></label>
+   <div style="flex:1;min-width:220px">
+    <div class="tg"><input type="text" data-tn="${i}" value="${esc(t.name||'')}" placeholder="اسم النوع (مثلاً: الفنادق)" aria-label="اسم النوع"><input type="text" dir="ltr" data-tne="${i}" value="${esc(t.name_en||'')}" placeholder="English name" aria-label="English name"></div>
+    <div class="tg"><input type="text" data-td="${i}" value="${esc(t.desc||'')}" placeholder="وصف قصير يظهر تحت الاسم" aria-label="الوصف"><input type="text" dir="ltr" data-tde="${i}" value="${esc(t.desc_en||'')}" placeholder="Short description" aria-label="English description"></div>
+    <div class="note" style="margin-top:6px"><span style="font-weight:700;color:var(--ink)">${count(t)}</span> منتج · ${cats.filter(c=>catState(t,c)!=='none').length} قسم${t.hidden?' · <span style="font-weight:700;color:var(--bad)">مخفي</span>':''}${t.key?` · <span dir="ltr">/b/${esc(t.key)}</span>`:''}</div></div>
+   <div class="row"><button type="button" class="btn alt" data-tup="${i}" ${i?'':'disabled'} aria-label="لأعلى" style="min-height:40px;padding:6px 12px">↑</button><button type="button" class="btn alt" data-tdn="${i}" ${i<L.length-1?'':'disabled'} aria-label="لأسفل" style="min-height:40px;padding:6px 12px">↓</button>
+    <button type="button" class="btn alt" data-th="${i}" style="min-height:40px;padding:6px 12px">${t.hidden?'إظهار':'إخفاء'}</button>
+    ${askDel===i?`<button type="button" class="btn danger" data-tdel2="${i}" style="min-height:40px;padding:6px 12px">تأكيد الحذف</button>`:`<button type="button" class="btn alt" data-tdel="${i}" style="min-height:40px;padding:6px 12px;color:var(--bad)">حذف</button>`}</div></div>
+   <div style="margin-top:10px"><button type="button" class="linkish" data-to="${i}">${open===i?'إخفاء الأقسام':'الأقسام المختارة ('+cats.filter(c=>catState(t,c)!=='none').length+') – تعديل'}</button>
+   ${open===i?`<div style="margin-top:8px"><div class="row" style="margin-bottom:8px"><button type="button" class="btn alt" data-tauto="${i}" style="min-height:36px;padding:4px 14px">اختيار تلقائي من الاسم والوصف</button><button type="button" class="btn alt" data-tnone="${i}" style="min-height:36px;padding:4px 14px">إزالة كل العلامات</button></div>
+    ${cats.map((c,ci)=>{const st=catState(t,c);return `<div style="border-top:1px solid var(--line);padding:8px 0"><label class="row" style="gap:8px;cursor:pointer;font-weight:700"><input type="checkbox" data-tc="${i}.${ci}" ${st==='all'?'checked':''} ${st==='some'?'data-some="1"':''} style="width:20px;height:20px"> ${esc(c.name)} <span class="note" style="font-weight:400">${fcount(c)} منتج</span></label>
+     ${c.subs.length?`<div style="display:flex;flex-wrap:wrap;gap:4px 16px;padding-inline-start:28px;margin-top:4px">${c.subs.map((x,xi)=>`<label class="row" style="gap:6px;cursor:pointer;font-size:14px"><input type="checkbox" data-tf="${i}.${ci}.${xi}" ${famOn(t,c,x)?'checked':''} style="width:18px;height:18px"> ${esc(x.name)} <span class="note">${fcount(c,x)}</span></label>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''}</div></div>`).join('')}</div>
+  <div class="row" style="justify-content:space-between;margin-top:6px"><div class="row"><button type="button" class="btn alt" id="tadd">+ نوع نشاط جديد</button><button type="button" class="btn alt" id="treset">استرجاع الأنواع الافتراضية</button></div><button type="button" class="btn" id="tsave">حفظ أنواع النشاط</button></div>`;
+  document.querySelectorAll('[data-tc][data-some]').forEach(x=>x.indeterminate=true);
+  if(fsel){const x=$(fsel);if(x){x.focus();x.setSelectionRange&&x.setSelectionRange(x.value.length,x.value.length)}}
+  const sync=()=>L.forEach((t,i)=>{t.name=$(`[data-tn="${i}"]`).value.trim();t.name_en=$(`[data-tne="${i}"]`).value.trim();t.desc=$(`[data-td="${i}"]`).value.trim();t.desc_en=$(`[data-tde="${i}"]`).value.trim()});
+  const on=(sel,fn,ev='onclick')=>document.querySelectorAll(sel).forEach(b=>b[ev]=()=>{sync();dirty=true;fn(b);draw()});
+  on('[data-tup]',b=>{const i=+b.dataset.tup;[L[i-1],L[i]]=[L[i],L[i-1]];open=-1});
+  on('[data-tdn]',b=>{const i=+b.dataset.tdn;[L[i+1],L[i]]=[L[i],L[i+1]];open=-1});
+  on('[data-th]',b=>{const t=L[+b.dataset.th];t.hidden=!t.hidden});
+  on('[data-tdel]',b=>{askDel=+b.dataset.tdel});on('[data-tdel2]',b=>{L.splice(+b.dataset.tdel2,1);askDel=-1;open=-1});
+  on('[data-to]',b=>{const i=+b.dataset.to;open=open===i?-1:i});
+  on('[data-tauto]',b=>auto(L[+b.dataset.tauto]));
+  on('[data-tnone]',b=>{L[+b.dataset.tnone].pick={}});
+  on('[data-tc]',b=>{const [i,ci]=b.dataset.tc.split('.').map(Number);const t=L[i],c=cats[ci];if(b.checked)t.pick[c.name]='*';else delete t.pick[c.name]},'onchange');
+  on('[data-tf]',b=>{const [i,ci,xi]=b.dataset.tf.split('.').map(Number);const t=L[i],c=cats[ci],x=c.subs[xi];let v=t.pick[c.name];
+    if(v==='*')v=new Set(c.subs.map(s=>s.name));if(!(v instanceof Set))v=new Set();b.checked?v.add(x.name):v.delete(x.name);
+    t.pick[c.name]=v.size===c.subs.length?'*':v;if(!v.size)delete t.pick[c.name]},'onchange');
+  // a new type: choose its categories automatically once it has a name
+  document.querySelectorAll('[data-tn],[data-tne],[data-td]').forEach(x=>x.addEventListener('change',()=>{const i=+(x.dataset.tn??x.dataset.tne??x.dataset.td);sync();dirty=true;const t=L[i];if(t.fresh&&t.name){auto(t);t.fresh=false;open=i;setTimeout(draw,0)}}));
+  document.querySelectorAll('[data-ti]').forEach(x=>x.onchange=e=>{const f=e.target.files[0];if(!f)return;sync();dirty=true;shrink(f,1000,d=>{L[+x.dataset.ti].img=d;draw()})});
+  $('#tadd').onclick=()=>{sync();dirty=true;L.push({key:'',name:'',name_en:'',desc:'',desc_en:'',img:'',hidden:false,pick:{},fresh:true});open=L.length-1;draw();setTimeout(()=>$(`[data-tn="${L.length-1}"]`).focus(),0)};
+  $('#treset').onclick=e=>{if(e.target.dataset.sure!=='1'){e.target.dataset.sure='1';e.target.textContent='تأكيد: استبدال كل التعديلات بالأنواع الافتراضية';return}L=RT.SEGMENTS.map(t=>toEdit(JSON.parse(JSON.stringify(t))));dirty=true;open=-1;draw()};
+  $('#tsave').onclick=async()=>{sync();
+    for(const t of L){if(!t.name)return toast('يوجد نوع بدون اسم');if(!Object.values(t.pick).some(v=>v==='*'||v.size))return toast('اختر قسماً واحداً على الأقل لـ «'+t.name+'»')}
+    if(new Set(L.map(t=>t.name)).size!==L.length)return toast('يوجد نوعان بالاسم نفسه');
+    const btn=$('#tsave');btn.disabled=true;btn.textContent='جارٍ الحفظ…';
+    for(const t of L){if(!t.key)t.key=keyFor(t);if(t.img&&t.img.startsWith('data:'))t.img=await uploadImg(t.img)||''}
+    db.settings.types=L.map(t=>{const {fresh,...x}=plain(t);if(!x.name_en)x.name_en=x.name;if(!x.desc_en)x.desc_en=x.desc;return x});
+    if(await saveSettings()){dirty=false;toast('تم حفظ أنواع النشاط – تظهر في المتجر خلال دقيقة');paneTypes()}else{btn.disabled=false;btn.textContent='حفظ أنواع النشاط'}};
+  };
   draw();
 }
 /* ---------- history of product changes ---------- */

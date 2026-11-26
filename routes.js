@@ -46,9 +46,45 @@
               [K]: ['عربايات وأثاث', 'طناجر ومقالي', 'حفظ وتخزين'] } }
   ];
   SEGMENTS.forEach(s => { s.img = '/photos/types/' + s.key + '.webp'; });
+  // The shop owner edits the types in the dashboard (settings.types); until then the five above are used.
+  const segments = (settings, all) => {
+    const L = settings && Array.isArray(settings.types) ? settings.types : SEGMENTS;
+    return L.filter(s => s && s.key && s.name && s.pick && (all || !s.hidden))
+            .map(s => ({ ...s, img: s.img || (SEGMENTS.some(d => d.key === s.key) ? '/photos/types/' + s.key + '.webp' : '') }));
+  };
+  // Automatic choice of categories for a type, from words in its name and description.
+  // Ready-made sets for common businesses, plus any category or family whose name appears in the words.
+  const PRESETS = [
+    [/مطعم|مطاعم|وجبات|restaurant|takeaway|fast ?food/i, 'restaurants'],
+    [/مقه|كافي|قهوة|كوفي|caf|coffee/i, 'cafes'],
+    [/حلويات|حلو|شوكولا|sweet|chocolate|candy/i, 'sweet-shops'],
+    [/مخبز|مخابز|كيك|معجنات|bakery|bakeries|cake|pastry/i, 'bakeries'],
+    [/تموين|مناسبات|حفلات|أفراح|catering|event|party|wedding/i, 'catering'],
+    [/فندق|فنادق|hotel/i, { [V]: '*', [C]: '*', [K]: ['تنظيف', 'عربايات وأثاث', 'أجهزة وماكينات'], [T]: ['ورق لف ومحارم'] }],
+    [/مستشفى|مستشفيات|عياد|طبي|hospital|clinic|medical/i, { [T]: ['علب وجبات', 'صحون وصواني سفري', 'معالق وأطقم سفري', 'ورق لف ومحارم', 'كفوف ومرايل', 'أغطية'], [C]: ['كاسات ورق وبلاستيك', 'قناني وعبوات'], [K]: ['تنظيف'] }],
+    [/مدرس|مدارس|جامع|كلية|حضان|روض|school|universit|college|nurser/i, { [T]: ['علب وجبات', 'أكياس ومستلزمات', 'معالق وأطقم سفري', 'ورق لف ومحارم'], [C]: ['كاسات ورق وبلاستيك', 'قناني وعبوات'] }],
+    [/مكتب|مكاتب|شرك|بنك|بنوك|وزار|office|compan|bank|government/i, { [C]: '*', [V]: ['كاسات وفناجين', 'سدور وصواني تقديم'], [T]: ['ورق لف ومحارم'], [K]: ['تنظيف'] }],
+    [/عصير|عصائر|juice|smoothie/i, { [C]: ['كاسات ورق وبلاستيك', 'أغطية ومصاصات وحراكات', 'قناني وعبوات', 'حمّالات كاسات', 'أباريق ودلال'], [T]: ['أكياس ومستلزمات'], [K]: ['أجهزة وماكينات'] }],
+    [/شاورما|مشاوي|مشويات|بيتزا|برجر|فلافل|shawarma|pizza|burger|grill|falafel/i, { [T]: '*', [K]: ['أجهزة وماكينات', 'طناجر ومقالي', 'سكاكين وأدوات تقطيع', 'أدوات المطبخ', 'ورق كاشير وباركود'] }],
+    [/بوظة|آيس|جيلاتو|ice ?cream|gelato/i, { [S]: ['كاسات حلويات'], [C]: ['كاسات ورق وبلاستيك', 'أغطية ومصاصات وحراكات'], [T]: ['معالق وأطقم سفري', 'أكياس ومستلزمات'] }],
+    [/بيت|منزل|منازل|ربات|home|household/i, { [B]: '*', [D]: '*', [K]: ['أدوات المطبخ', 'حفظ وتخزين'] }],
+    [/هدايا|هدية|ورد|زهور|gift|flower/i, { [G]: '*', [D]: ['شموع وزينة', 'فلين وتنسيق'] }]
+  ];
+  const addPick = (to, from) => { for (const [c, v] of Object.entries(from)) {
+    if (v === '*' || to[c] === '*') to[c] = '*'; else to[c] = [...new Set([...(to[c] || []), ...v])]; } return to; };
+  const suggestPick = (text, cats) => {   // cats = [{name, name_en, subs:[{name, name_en}]}]
+    const t = String(text || ''), pick = {};
+    PRESETS.forEach(([re, v]) => { if (re.test(t)) addPick(pick, typeof v === 'string' ? SEGMENTS.find(s => s.key === v).pick : v); });
+    const low = t.toLowerCase(), has = n => n && n.length > 2 && low.includes(String(n).toLowerCase());
+    (cats || []).forEach(c => { if (has(c.name) || has(c.name_en)) addPick(pick, { [c.name]: '*' });
+      else (c.subs || []).forEach(x => { if (has(x.name) || has(x.name_en)) addPick(pick, { [c.name]: [x.name] }); }); });
+    const known = new Set((cats || []).map(c => c.name));   // only categories that exist in the shop
+    if (cats) Object.keys(pick).forEach(c => { if (!known.has(c)) delete pick[c]; });
+    return pick;
+  };
   const inSeg = (seg, p) => { const v = seg && seg.pick[p.cat]; return v === '*' || (Array.isArray(v) && v.includes(p.sub)); };
   const segRank = (seg, p) => { const k = Object.keys(seg.pick).indexOf(p.cat); return k < 0 ? 99 : k; };   // the type's main categories first
-  const findSeg = k => SEGMENTS.find(s => s.key === decodeURIComponent(k || '')) || null;
+  const findSeg = (k, list) => (list || SEGMENTS).find(s => s.key === decodeURIComponent(k || '')) || null;
   const enc = s => encodeURIComponent(s).replace(/%2D/g, '-');
   const paths = base => ({
     home: () => base + '/',
@@ -83,6 +119,6 @@
       return { name: n, name_en, img: c.img || '', subs };
     });
   };
-  const api = { tree, SEGMENTS, inSeg, segRank, findSeg, PRIVATE, slug, catSlug, findCat, findSub, paths, parse };
+  const api = { tree, SEGMENTS, segments, suggestPick, inSeg, segRank, findSeg, PRIVATE, slug, catSlug, findCat, findSub, paths, parse };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.SNRoutes = api;
 })(typeof window !== 'undefined' ? window : globalThis);
